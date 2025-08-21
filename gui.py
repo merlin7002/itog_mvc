@@ -106,9 +106,7 @@ class MainApp(tk.Tk):
 
     def search_customers(self):
         keyword = self.search_var.get().strip()
-        print(f"keywrod={keyword}")
         filtered_customers = self.controller.search_customers(keyword)
-        print(filtered_customers)
         self.customers_treeview.delete(*self.customers_treeview.get_children())
         for cust in filtered_customers:
             self.customers_treeview.insert("", "end", values=(cust.id, cust.name, cust.email, cust.phone))
@@ -235,9 +233,7 @@ class MainApp(tk.Tk):
 
     def search_products(self):
         keyword = self.search_prod_var.get().strip()
-        print(f"keyword={keyword}")
         filtered_products = self.controller.search_products(keyword)
-        print(filtered_products)
         self.products_treeview.delete(*self.products_treeview.get_children())
         for prod in filtered_products:
             self.products_treeview.insert("", "end", values=(prod.id, prod.name, prod.price, prod.quantity))
@@ -264,7 +260,7 @@ class MainApp(tk.Tk):
             f"Удалить товар '{item[1]}'?"
         )
         if confirmation:
-            sres = self.controller.delete_product(int(item[0]))
+            res = self.controller.delete_product(int(item[0]))
             if res[0]:
                 messagebox.showwarning("Подтверждение", f"Товар '{item[1]}' удален!")
                 self.load_products()
