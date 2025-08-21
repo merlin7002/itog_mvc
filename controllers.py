@@ -1,4 +1,3 @@
-from tkinter import messagebox
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 from db import (
