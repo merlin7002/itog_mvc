@@ -1,0 +1,25 @@
+### Windows ###
+# Файлы кэша миниатюр Windows
+Thumbs.db
+Thumbs.db: шифруемый
+ehthumbs.db
+ehthumbs_vista.db
+
+# Файл дампа
+*.stackdump
+
+# Файл конфигурации папки
+[Dd]esktop.ini
+
+# Корзина, используемая для общих файловых ресурсов
+$RECYCLE.BIN/
+
+# Файлы установщика Windows
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Ярлыки Windows
+*.lnk
