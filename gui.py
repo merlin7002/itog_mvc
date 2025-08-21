@@ -10,6 +10,7 @@ class MainApp(tk.Tk):
         self.geometry("800x600")
         self.controller = AppController(self)
         self.create_menus()
+        self.sort_params = {"heading": "id", "id": "asc"}  # Глобальная переменная для хранения настроек сортировки
         self.create_tabs()
 
     def create_menus(self):
@@ -316,7 +317,12 @@ class MainApp(tk.Tk):
         tree_columns = ("ID", "Покупатель", "Дата создания", "Статус заказа", "Итоговая сумма")
         self.orders_treeview = ttk.Treeview(frame, columns=tree_columns, show="headings")
         for col in tree_columns:
-            self.orders_treeview.heading(col, text=col)
+            if col in ["ID", "Дата создания", "Итоговая сумма"]:
+                # Назначаем обработчики только для этих колонок
+                self.orders_treeview.heading(col, text=col, command=lambda c=col: self.sort_orders(c))
+            else:
+                # Остальные колонки остаются без обработчика
+                self.orders_treeview.heading(col, text=col)
             # Установка минимальной ширины колонок
             if col == "Итоговая сумма":
                 self.orders_treeview.column(col, minwidth=100, width=155, stretch=True)
@@ -349,11 +355,28 @@ class MainApp(tk.Tk):
             search_entry.delete(0, tk.END)  # Очищаем поле ввода
             self.load_orders()
 
+    def sort_orders(self, column):
+        # Получаем текущее направление сортировки для указанного столбца
+        new_column = 'id'
+        if column == 'Дата создания':
+            new_column = 'date'
+        elif column == 'Итоговая сумма':
+            new_column = 'amount'
+        current_dir = self.sort_params.get(new_column, "asc")
+        # Переключаем направление сортировки
+        new_dir = "desc" if current_dir == "asc" else "asc"
+        self.sort_params = {
+            "heading": new_column,
+            new_column: new_dir
+        }
+        # Обновляем список заказов с учётом новых параметров сортировки
+        self.load_orders()
+
     def load_orders(self):
         """
         Обновляет дерево заказов на основании данных, полученных от контроллера.
         """
-        orders = self.controller.load_orders()
+        orders = self.controller.load_sort_orders(self.sort_params)
         self.orders_treeview.delete(*self.orders_treeview.get_children())
         for ord in orders:
             # Получаем имя покупателя по идентификатору

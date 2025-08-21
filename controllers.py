@@ -47,6 +47,24 @@ class AppController:
         """
         return select_orders()
 
+    def load_sort_orders(self, sort_params):
+        """
+        Возвращает список заказов, отсортированных по параметрам.
+        """
+        # Получаем полный список заказов
+        orders = select_orders()
+        # Определяем столбец и направление сортировки
+        column = sort_params.get("heading", "id")
+        direction = sort_params.get(column, "asc")
+        # Производим сортировку
+        if column == "id":
+            orders.sort(key=lambda x: x.id, reverse=(direction == "desc"))
+        elif column == "date":
+            orders.sort(key=lambda x: x.date_created, reverse=(direction == "desc"))
+        elif column == "amount":
+            orders.sort(key=lambda x: x.total_amount, reverse=(direction == "desc"))
+        return orders
+
     def search_customers(self, keyword):
         """
         Осуществляет поиск клиентов по указанным ключевым словам.
