@@ -135,8 +135,12 @@ class MainApp(tk.Tk):
             f"Удалить клиента '{item[1]}'?"
         )
         if confirmation:
-            self.controller.delete_customer(int(item[0]))
-            self.load_customers()
+            res = self.controller.delete_customer(int(item[0]))
+            if res[0]:
+                messagebox.showwarning("Подтверждение", f"Клиент {item[1]} удален!")
+                self.load_customers()
+            else:
+                messagebox.showwarning("Ошибка", res[1])
 
     def export_customers(self):
         """
@@ -260,8 +264,12 @@ class MainApp(tk.Tk):
             f"Удалить товар '{item[1]}'?"
         )
         if confirmation:
-            self.controller.delete_product(int(item[0]))
-            self.load_products()
+            sres = self.controller.delete_product(int(item[0]))
+            if res[0]:
+                messagebox.showwarning("Подтверждение", f"Товар '{item[1]}' удален!")
+                self.load_products()
+            else:
+                messagebox.showwarning("Ошибка", res[1])
 
     def export_products(self):
         """

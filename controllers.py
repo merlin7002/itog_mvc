@@ -446,10 +446,19 @@ class AppController:
                 return False, f"Возникла непредвиденная ошибка: {str(e)}"
 
     def delete_customer(self, customer_id):
+         """
+        Удаляет клиента по его ID, предварительно проверив наличие заказов.
         """
-        Удаляет клиента по его ID.
-        """
-        delete_customer(customer_id)
+        # Проверяем, есть ли у покупателя активные заказы
+        related_orders = select_orders_by_customer_id(customer_id)
+        if related_orders:
+            customer = find_customer_by_id(customer_id)
+            error_message = f"У покупателя {customer.name} есть оформленные заказы. Удаление запрещено."
+            return False, error_message
+        else:
+            # Если заказов нет, удаляем покупателя
+            delete_customer(customer_id)
+            return True, None
 
     def find_product_id_by_name(name):
         product = next((p for p in select_products() if p.name == name), None)
@@ -537,10 +546,19 @@ class AppController:
             return False, f"Возникла непредвиденная ошибка: {str(e)}"
 
     def delete_product(self, product_id):
+         """
+        Удаляет товар по его ID, предварительно проверив наличие в оформленных заказах.
         """
-        Удаляет продукт по его ID.
-        """
-        delete_product(product_id)
+        # Проверяем, участвует ли товар в активных заказах
+        related_items = select_orders_by_product_id(product_id)
+        if related_items:
+            product = find_product_by_id(product_id)
+            error_message = f"Товар {product.name} состоит в оформленном заказе. Удаление запрещено."
+            return False, error_message
+        else:
+            # Если товар не используется в заказах, удаляем его
+            delete_product(product_id)
+            return True, None
 
     # def add_order(self, order_data):
     #     """
