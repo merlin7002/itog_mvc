@@ -498,26 +498,22 @@ class MainApp(tk.Tk):
         upper_row_frame.pack(fill="both", expand=True)
 
         # Внутренние фреймы для ограничения роста графиков
-        canvas1_frame = ttk.Frame(upper_row_frame, width=600, height=400)
-        canvas1_frame.pack_propagate(False)
-        canvas1_frame.pack(side=tk.LEFT, fill=None, expand=False)
+        self.canvas1_frame = ttk.Frame(upper_row_frame, width=600, height=400)
+        self.canvas1_frame.pack_propagate(False)
+        self.canvas1_frame.pack(side=tk.LEFT, fill=None, expand=False)
 
-        canvas2_frame = ttk.Frame(upper_row_frame, width=600, height=400)
-        canvas2_frame.pack_propagate(False)
-        canvas2_frame.pack(side=tk.RIGHT, fill=None, expand=False)
+        self.canvas2_frame = ttk.Frame(upper_row_frame, width=600, height=400)
+        self.canvas2_frame.pack_propagate(False)
+        self.canvas2_frame.pack(side=tk.RIGHT, fill=None, expand=False)
 
         # Внутренний фрейм для нижнего ряда (третий график)
         lower_row_frame = ttk.Frame(graphs_frame)
         lower_row_frame.pack(fill="both", expand=True, side="bottom", anchor="s")
 
-        graph_canvas_frame = ttk.Frame(lower_row_frame, width=1200, height=400)
-        graph_canvas_frame.pack_propagate(False)
-        graph_canvas_frame.pack(fill="both", expand=True)
+        self.graph_canvas_frame = ttk.Frame(lower_row_frame, width=1200, height=400)
+        self.graph_canvas_frame.pack_propagate(False)
+        self.graph_canvas_frame.pack(fill="both", expand=True)
         self.load_analysis()
-
-        self.canvas1_frame = canvas1_frame
-        self.canvas2_frame = canvas2_frame
-        self.graph_canvas_frame = graph_canvas_frame
 
     def build_fig1(self, data):
         """
@@ -589,6 +585,14 @@ class MainApp(tk.Tk):
         data1 = self.controller.c_top5(top5_data)
         data2 = self.controller.c_orders_per_day(opd_data)
         data3 = self.controller.c_client_connections((graph_data))
+
+        # Сначала удаляем существующие графики, если они есть
+        for widget in self.canvas1_frame.winfo_children():
+            widget.destroy()
+        for widget in self.canvas2_frame.winfo_children():
+            widget.destroy()
+        for widget in self.graph_canvas_frame.winfo_children():
+            widget.destroy()
 
         # Строим графики
         self.build_fig1(data1)
