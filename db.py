@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 
@@ -307,6 +307,18 @@ def select_data(table_name):
         cursor.execute(f'SELECT * FROM {table_name}')
         headers = [desc[0] for desc in cursor.description]
         return [dict(zip(headers, row)) for row in cursor.fetchall()]
+
+def select_analysis_data(table_name):
+    """
+    Читает данные из указанной таблицы и возвращает их.
+    Используется для analysis.py
+    """
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        query = f"SELECT * FROM {table_name}"
+        res = cursor.execute(query).fetchall()
+        cols = list(map(lambda x: x[0], cursor.description))
+        return res, cols
 
 def truncate_table(table_name):
     """

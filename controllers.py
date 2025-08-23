@@ -1,3 +1,5 @@
+from fontTools.qu2cu.qu2cu import Tuple
+
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 from db import (
@@ -6,10 +8,13 @@ from db import (
     insert_order, select_orders, delete_order, delete_order_list, insert_order_item,
     find_customer_by_id, find_product_by_id, find_order_by_id, find_order_list_by_id,
     select_orders_by_customer_id, select_orders_by_product_id, update_order,
-    select_data, truncate_table, bulk_insert_data, create_tables, select_all_orders_with_items
+    select_data, truncate_table, bulk_insert_data, create_tables, select_all_orders_with_items,
+    select_analysis_data
 )
 import re
 import csv, json
+import pandas as pd
+from analysis import top5, orders_per_day, client_connections
 
 class DatetimeEncoder(json.JSONEncoder):
     """
@@ -694,3 +699,69 @@ class AppController:
         pattern = r"^\+7\d{10}$|^\d{11}$"
         if not re.match(pattern, phone):
             raise ValueError(f"Некорректный формат телефона: {phone}")
+
+    def fetch_top5_customers(self):
+        """
+        Получает сводку по топ-5 клиентам
+        """
+        res_ord, col_ord = select_analysis_data('orders')
+        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
+        res_cust, col_cust = select_analysis_data('customers')
+        # df_customers = pd.DataFrame(res_cust, columns=col_cust)
+        # # Прямо соединяем заказы с клиентами
+        # merged_df = df_orders.merge(df_customers, left_on='customer_id', right_on='id', how='left')
+        # Составляем список кортежей с данными для построения датафрейма для построения графика top5
+        res = [(res_cust, col_cust), (res_ord, col_ord)]
+        return res
+
+    def fetch_orders_per_day(self):
+        """
+        Получает данные для динамического графика заказов по дням
+        """
+        res_ord, col_ord = select_analysis_data('orders')
+        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
+        # Составляем кортеж с данными для построения датафрейма для построения графика orders_per_day
+        res = (res_ord, col_ord)
+        return res
+
+    def fetch_client_connections(self):
+        """
+        Получает данные для графа взаимосвязей клиентов
+        """
+        res_cust, col_cust = select_analysis_data('customers')
+        # df_customers = pd.DataFrame(res_cust, columns=col_cust)
+        res_prod, col_prod = select_analysis_data('products')
+        # df_products = pd.DataFrame(res_prod, columns=col_prod)
+        res_ord, col_ord = select_analysis_data('orders')
+        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
+        res_ord_it, col_ord_it = select_analysis_data('order_items')
+        # df_order_items = pd.DataFrame(res_ord_it, columns=col_ord_it)
+        # Проводим полное слияние
+        # merged_df = df_orders.merge(df_customers, left_on='customer_id', right_on='id', how='left',
+        #                             suffixes=('_orders', '_customers'))
+        # merged_df2 = merged_df.merge(df_order_items, left_on='id_orders', right_on='order_id', how='inner')
+        # final_df = merged_df2.merge(df_products, left_on='product_id', right_on='id', how='inner', suffixes=('_customer', '_product'))[['name_customer', 'name_product']]  # Оставляем только нужное
+        # Составляем список кортежей с данными для построения датафрейма для построения графика top5
+        res = [(res_cust, col_cust), (res_prod, col_prod), (res_ord, col_ord), (res_ord_it, col_ord_it)]
+        return res
+
+    def c_top5(self, res):
+        """
+        Отправляет данные в analysis.py для построения графика "топ5 клиентов по заказам"
+        """
+        top = top5(res)
+
+        return top
+
+
+    def c_orders_per_day(self, res):
+        """
+        Отправляет данные в analysis.py для построения графика "Динамика количества заказов по датам"
+        """
+        return orders_per_day(res)
+
+    def c_client_connections(self, res):
+        """
+        Отправляет данные в analysis.py для построения графа "Связь покупателей по общим товарам"
+        """
+        return client_connections(res)

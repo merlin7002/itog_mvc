@@ -1,4 +1,10 @@
 import tkinter as tk
+from operator import truediv
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import networkx as nx
 from tkinter import messagebox, ttk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from controllers import AppController
@@ -6,12 +12,14 @@ from controllers import AppController
 class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        plt.ioff()
         self.title("Интернет-магазин | Менеджмент клиентов и заказов")
-        self.geometry("800x600")
+        self.geometry("1200x800")
         self.controller = AppController(self)
         self.create_menus()
         self.sort_params = {"heading": "id", "id": "asc"}  # Глобальная переменная для хранения настроек сортировки
         self.create_tabs()
+
 
     def create_menus(self):
         menu_bar = tk.Menu(self)
@@ -24,6 +32,12 @@ class MainApp(tk.Tk):
         menu_bar.add_cascade(label="Справка", menu=help_menu)
 
         self.config(menu=menu_bar)
+        # Протокол для обработки события закрытия окна
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def on_close(self):
+        # Завершаем приложение
+        self.quit()
 
     def show_about_dialog(self):
         messagebox.showinfo("О программе", "Программа для управления магазином\nВерсия 1.0\nАвтор: Фёдоров Алексей")
@@ -33,10 +47,12 @@ class MainApp(tk.Tk):
         self.tab_customers = ttk.Frame(tab_control)
         self.tab_products = ttk.Frame(tab_control)
         self.tab_orders = ttk.Frame(tab_control)
+        self.tab_analysis = ttk.Frame(tab_control)
 
         tab_control.add(self.tab_customers, text="Клиенты")
         tab_control.add(self.tab_products, text="Товары")
         tab_control.add(self.tab_orders, text="Заказы")
+        tab_control.add(self.tab_analysis, text="Аналитика и визуализация")
         tab_control.pack(expand=True, fill="both")
         style = ttk.Style(self)
         style.theme_use('clam')
@@ -45,10 +61,11 @@ class MainApp(tk.Tk):
         self.setup_customers_tab()
         self.setup_products_tab()
         self.setup_orders_tab()
+        self.setup_analysis_tab()
 
     def setup_customers_tab(self):
         frame = ttk.LabelFrame(self.tab_customers, text="Управление клиентами")
-        frame.pack(padx=10, pady=10)
+        frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
         # Поиск клиента
         search_frame = ttk.Frame(frame)
@@ -137,6 +154,7 @@ class MainApp(tk.Tk):
             if res[0]:
                 messagebox.showwarning("Подтверждение", f"Клиент {item[1]} удален!")
                 self.load_customers()
+                self.load_analysis()
             else:
                 messagebox.showwarning("Ошибка", res[1])
 
@@ -170,12 +188,13 @@ class MainApp(tk.Tk):
             if success:
                 messagebox.showinfo("Импорт завершен", f"Данные успешно импортированы из файла {filename}.")
                 self.load_customers()
+                self.load_analysis()
             else:
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
 
     def setup_products_tab(self):
         frame = ttk.LabelFrame(self.tab_products, text="Управление товарами")
-        frame.pack(padx=10, pady=10)
+        frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
         # Поиск товара
         search_frame = ttk.Frame(frame)
@@ -264,6 +283,7 @@ class MainApp(tk.Tk):
             if res[0]:
                 messagebox.showwarning("Подтверждение", f"Товар '{item[1]}' удален!")
                 self.load_products()
+                self.load_analysis()
             else:
                 messagebox.showwarning("Ошибка", res[1])
 
@@ -297,12 +317,13 @@ class MainApp(tk.Tk):
             if success:
                 messagebox.showinfo("Импорт завершен", f"Данные успешно импортированы из файла {filename}.")
                 self.load_products()
+                self.load_analysis()
             else:
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
 
     def setup_orders_tab(self):
         frame = ttk.LabelFrame(self.tab_orders, text="Управление заказами")
-        frame.pack(padx=10, pady=10)
+        frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
         # Поиск заказа
         search_frame = ttk.Frame(frame)
@@ -428,6 +449,7 @@ class MainApp(tk.Tk):
         if confirmation:
             self.controller.delete_order(int(item[0]))
             self.load_orders()
+            self.load_analysis()
 
     def export_orders(self):
         """
@@ -459,8 +481,119 @@ class MainApp(tk.Tk):
             if success:
                 messagebox.showinfo("Импорт завершен", f"Данные успешно импортированы из файла {filename}.")
                 self.load_orders()
+                self.load_analysis()
             else:
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
+
+    def setup_analysis_tab(self):
+        frame = ttk.LabelFrame(self.tab_analysis, text="Аналитика и визуализация")
+        frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
+
+        # Внешний фрейм для графиков
+        graphs_frame = ttk.Frame(frame)
+        graphs_frame.pack(fill="both", expand=True)
+
+        # Внутренние фреймы для верхнего ряда (два первых графика)
+        upper_row_frame = ttk.Frame(graphs_frame)
+        upper_row_frame.pack(fill="both", expand=True)
+
+        # Внутренние фреймы для ограничения роста графиков
+        canvas1_frame = ttk.Frame(upper_row_frame, width=600, height=400)
+        canvas1_frame.pack_propagate(False)
+        canvas1_frame.pack(side=tk.LEFT, fill=None, expand=False)
+
+        canvas2_frame = ttk.Frame(upper_row_frame, width=600, height=400)
+        canvas2_frame.pack_propagate(False)
+        canvas2_frame.pack(side=tk.RIGHT, fill=None, expand=False)
+
+        # Внутренний фрейм для нижнего ряда (третий график)
+        lower_row_frame = ttk.Frame(graphs_frame)
+        lower_row_frame.pack(fill="both", expand=True, side="bottom", anchor="s")
+
+        graph_canvas_frame = ttk.Frame(lower_row_frame, width=1200, height=400)
+        graph_canvas_frame.pack_propagate(False)
+        graph_canvas_frame.pack(fill="both", expand=True)
+        self.load_analysis()
+
+        self.canvas1_frame = canvas1_frame
+        self.canvas2_frame = canvas2_frame
+        self.graph_canvas_frame = graph_canvas_frame
+
+    def build_fig1(self, data):
+        """
+        Создаем фигуру для первого графика (Top Customers)
+        """
+        fig1 = Figure(figsize=(4, 4), dpi=80)
+        ax1 = fig1.add_subplot(111)
+
+        # Строим гистограмму используя plt.bar
+        ax1.bar(data['name'], data['number_of_orders'])
+        ax1.set_xlabel('Покупатели')
+        ax1.set_ylabel('Количество заказов')
+        ax1.set_title('ТОП-5 покупателей по числу заказов')
+        ax1.tick_params(axis='x', rotation=15)
+        plt.tight_layout()  # Оптимизация расположения графики
+        canvas1 = FigureCanvasTkAgg(fig1, master=self.canvas1_frame)
+        canvas1.draw()
+        canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    def build_fig2(self, data):
+        """
+        Создаем фигуру для второго графика (Orders Over Time)
+        """
+        fig2 = Figure(figsize=(4, 4), dpi=80)
+        ax2 = fig2.add_subplot(111)
+
+        # Строим линейный график
+        ax2.plot(data['date_created'], data['counts'], marker='o')  # Добавляем маркер точек 'o'
+        ax2.set_xlabel('Даты')
+        ax2.set_ylabel('Количество заказов')
+        ax2.set_title('Динамика количества заказов по датам')
+        ax2.grid(True)  # Включаем сетку для удобства восприятия
+        plt.tight_layout()  # Подгонка размеров элементов
+        canvas2 = FigureCanvasTkAgg(fig2, master=self.canvas2_frame)
+        canvas2.draw()
+        canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    def build_fig3(self, data):
+        """
+        Создание графа NetworkX
+        """
+        G = nx.Graph()
+        G.add_weighted_edges_from(data)
+
+        # Визуализация графа
+        pos = nx.spring_layout(G)
+        figure = Figure(figsize=(8, 3), dpi=80)
+        ax = figure.add_subplot(111)
+        nx.draw_networkx_nodes(G, pos, node_size=500, alpha=0.8, ax=ax)
+        nx.draw_networkx_edges(G, pos, edge_color='gray', ax=ax)
+        nx.draw_networkx_labels(G, pos, font_size=10, font_family='sans-serif', ax=ax)
+        ax.axis('off')
+        ax.set_title('Граф связей покупателей по общим товарам')
+
+        canvas3 = FigureCanvasTkAgg(figure, master=self.graph_canvas_frame)
+        canvas3.draw()
+        canvas3.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    def load_analysis(self):
+        """
+        Обновляет вкладу Analysis, чтобы перестроились графики, в случае изменения данных в БД.
+        """
+        # Получаем данные из БД
+        top5_data = self.controller.fetch_top5_customers()
+        opd_data = self.controller.fetch_orders_per_day()
+        graph_data = self.controller.fetch_client_connections()
+
+        # Отправляем данные для анализа
+        data1 = self.controller.c_top5(top5_data)
+        data2 = self.controller.c_orders_per_day(opd_data)
+        data3 = self.controller.c_client_connections((graph_data))
+
+        # Строим графики
+        self.build_fig1(data1)
+        self.build_fig2(data2)
+        self.build_fig3(data3)
 
 class AddCustomerDialog(tk.Toplevel):
     def __init__(self, parent):
@@ -521,6 +654,7 @@ class AddCustomerDialog(tk.Toplevel):
             if success:
                 #Обновляем дерево клиентов
                 self.parent.load_customers()
+                self.parent.load_analysis()
                 # Закрываем окно только при успехе
                 self.destroy()
             else:
@@ -586,6 +720,7 @@ class EditCustomerDialog(tk.Toplevel):
             success, error_msg = self.parent.controller.edit_customer(self.customer_id, {"name": name, "email": email, "phone": phone})
             if success:
                 self.parent.load_customers()
+                self.parent.load_analysis()
                 self.destroy()
             else:
                 messagebox.showerror("Ошибка", error_msg, parent=self)
@@ -651,6 +786,7 @@ class AddProductDialog(tk.Toplevel):
             if success:
                 # Обновление дерева товаров
                 self.parent.load_products()
+                self.parent.load_analysis()
                 # Закрываем окно только при успехе
                 self.destroy()
             else:
@@ -718,6 +854,7 @@ class EditProductDialog(tk.Toplevel):
             success, error_msg = self.parent.controller.edit_product(self.product_id, {"name": name, "price": price, "quantity": quantity})
             if success:
                 self.parent.load_products()
+                self.parent.load_analysis()
                 self.destroy()
             else:
                 messagebox.showerror("Ошибка", error_msg, parent=self)
@@ -999,6 +1136,7 @@ class AddOrderDialog(tk.Toplevel):
         if success:
             messagebox.showinfo("Информация", message, parent=self)
             self.parent.load_orders()
+            self.parent.load_analysis()
         else:
             messagebox.showwarning("Внимание", message, parent=self)
         self.destroy()
@@ -1011,251 +1149,7 @@ class AddOrderDialog(tk.Toplevel):
         """Обновляет деревья в основном окне"""
         self.parent.load_orders()
         self.parent.load_products()
-
-# class AddOrderDialog(tk.Toplevel):
-#     def __init__(self, parent):
-#         super().__init__(parent)
-#         self.parent = parent
-#         self.title("Добавить заказ")
-#         self.resizable(False, False)
-#         self.cart_items = []
-#         self.total_amount = 0.0
-#
-#         # Основной фрейм
-#         main_frame = ttk.Frame(self)
-#         main_frame.pack(padx=10, pady=10)
-#
-#         # Выбор покупателя
-#         self.label_customer = ttk.Label(main_frame, text="Покупатель:")
-#         self.label_customer.grid(row=0, column=0, sticky="W")
-#         self.combo_customer = ttk.Combobox(main_frame)
-#         self.combo_customer.grid(row=0, column=1, sticky="WE")
-#         self.load_customers()
-#
-#         # Список товаров
-#         self.label_products = ttk.Label(main_frame, text="Товары:")
-#         self.label_products.grid(row=1, column=0, sticky="W")
-#         self.products_treeview = ttk.Treeview(main_frame, columns=("ID", "Название", "Цена", "Количество"), show="headings")
-#         self.products_treeview.column("#1", anchor="center", width=50)
-#         self.products_treeview.column("#2", anchor="w", width=200)
-#         self.products_treeview.column("#3", anchor="e", width=100)
-#         self.products_treeview.column("#4", anchor="e", width=100)
-#         self.products_treeview.heading("ID", text="ID")
-#         self.products_treeview.heading("Название", text="Название")
-#         self.products_treeview.heading("Цена", text="Цена")
-#         self.products_treeview.heading("Количество", text="Количество")
-#         self.products_treeview.grid(row=1, column=1, sticky="NSEW")
-#         self.load_products()
-#
-#         # Количество товаров в корзине
-#         self.label_count = ttk.Label(main_frame, text="Количество товаров в заказе: 0")
-#         self.label_count.grid(row=2, column=0, sticky="W")
-#
-#         # Общая сумма заказа
-#         self.label_total = ttk.Label(main_frame, text="Общая сумма заказа: 0.00 руб.")
-#         self.label_total.grid(row=2, column=1, sticky="E")
-#
-#         # Кнопка добавления товара в корзину
-#         add_to_cart_btn = ttk.Button(main_frame, text="Добавить в корзину", command=self.add_to_cart)
-#         add_to_cart_btn.grid(row=3, column=0, pady=10)
-#
-#         # Кнопка оформления заказа
-#         proceed_to_checkout_btn = ttk.Button(main_frame, text="Оформить заказ", command=self.proceed_to_checkout)
-#         proceed_to_checkout_btn.grid(row=4, column=0, pady=10)
-#
-#         # Кнопка отмены
-#         cancel_btn = ttk.Button(main_frame, text="Отмена", command=self.destroy)
-#         cancel_btn.grid(row=4, column=1, pady=10)
-#
-#     def load_customers(self):
-#         """Загружает список покупателей через контроллер."""
-#         customers = self.parent.controller.load_customers()
-#         self.customer_map = {customer.name: customer.id for customer in customers}
-#         self.combo_customer['values'] = list(self.customer_map.keys())
-#
-#     def load_products(self):
-#         """Загружает список товаров через контроллер."""
-#         products = self.parent.controller.load_products()
-#         for product in products:
-#             self.products_treeview.insert("", "end", values=(product.id, product.name, product.price, product.quantity))
-#
-#     def add_to_cart(self):
-#         """Добавляет товар в корзину."""
-#         selection = self.products_treeview.selection()
-#         if not selection:
-#             messagebox.showwarning("Внимание", "Выберите товар!", parent=self)
-#             return
-#
-#         item = self.products_treeview.item(selection[0])
-#         values = item['values']
-#         product_id = values[0]
-#         product_name = values[1]
-#         product_price = float(values[2])
-#         product_quantity = int(values[3])
-#
-#         # Проверяем наличие товара на складе
-#         if product_quantity == 0:
-#             messagebox.showwarning("Внимание", f"Невозможно добавить {product_name} в корзину. Товара нет в наличии.", parent=self)
-#             return
-#
-#         # Проверяем, есть ли уже такой товар в корзине
-#         existing_item = next((i for i in self.cart_items if i["product_id"] == product_id), None)
-#         if existing_item:
-#             # Если товар уже есть, увеличиваем его количество
-#             existing_item["quantity"] += 1
-#         else:
-#             # Если товар новый, добавляем его в корзину
-#             self.cart_items.append({
-#                 "product_id": product_id,
-#                 "name": product_name,
-#                 "price": product_price,
-#                 "quantity": 1
-#             })
-#         self.calculate_total()
-#         messagebox.showinfo("Информация", f"Товар {product_name} добавлен в заказ.", parent=self)
-#         # Возвращаем фокус на окно AddOrderDialog
-#         self.lift()  # Установим фокус на окно
-#         self.focus_force()  # Заставляем окно стать активным
-#         self.grab_set()  # Блокируем доступ к главному окну до закрытия этого окна
-#
-#     def calculate_total(self):
-#         """Рассчитывает общую сумму заказа и количество товаров."""
-#         self.total_amount = sum(item["price"] * item["quantity"] for item in self.cart_items)
-#         num_items = len(self.cart_items)
-#         self.label_count.config(text=f"Количество товаров в заказе: {num_items}")
-#         self.label_total.config(text=f"Общая сумма заказа: {self.total_amount:.2f} руб.")
-#
-#     def proceed_to_checkout(self):
-#         """Переход в корзину для оформления заказа."""
-#         if not self.cart_items:
-#             messagebox.showwarning("Внимание", "Нет товаров в корзине!", parent=self)
-#             return
-#
-#         if not self.combo_customer.current():
-#             messagebox.showwarning("Внимание", "Выберите покупателя!", parent=self)
-#             return
-#
-#         CheckoutCartWindow(self, self.cart_items, self.customer_map[self.combo_customer.get()])
-#
-#
-# class CheckoutCartWindow(tk.Toplevel):
-#     def __init__(self, parent, cart_items, customer_id):
-#         super().__init__(parent)
-#         self.parent = parent
-#         self.cart_items = cart_items
-#         self.customer_id = customer_id
-#         self.title("Корзина")
-#         self.resizable(False, False)
-#
-#         # Основной фрейм
-#         main_frame = ttk.Frame(self)
-#         main_frame.pack(padx=10, pady=10)
-#
-#         # Информация о покупателе
-#         self.label_customer = ttk.Label(main_frame, text=f"Покупатель: {next((c.name for c in parent.parent.controller.load_customers() if c.id == customer_id), 'Не найден')}")
-#         self.label_customer.grid(row=0, column=0, sticky="W")
-#
-#         # Суммарная стоимость заказа
-#         self.label_total = ttk.Label(main_frame, text="Общая сумма заказа: ")
-#         self.label_total.grid(row=0, column=1, sticky="E")
-#         self.update_total()  # Сразу обновляем итоговую сумму
-#
-#         # Создаем отдельные фреймы для каждого товара и спиннеров
-#         self.cart_frames = []
-#         for idx, item in enumerate(cart_items):
-#             # Получаем максимальную величину количества товара из базы данных
-#             max_quantity = self.parent.parent.controller.find_product_by_id(item["product_id"]).quantity
-#             item["max_quantity"] = max_quantity  # Добавляем max_quantity в cart_items
-#
-#             # Отдельный фрейм для каждого товара
-#             frame = ttk.Frame(main_frame)
-#             frame.grid(row=idx + 1, column=0, columnspan=2, sticky="EW")
-#             self.cart_frames.append(frame)
-#
-#             # Название и цена товара
-#             label_product = ttk.Label(frame, text=f"{item['name']} ({item['price']} руб.)")
-#             label_product.pack(side="left", padx=5)
-#
-#             # Спиннер для изменения количества
-#             spinbox = tk.Spinbox(frame, from_=0, to=max_quantity, increment=1, justify="right", width=5)
-#             spinbox.delete(0, "end")
-#             spinbox.insert(0, item["quantity"])
-#             spinbox.bind("<KeyRelease>", lambda event, index=idx: self.on_spinbox_change(event, index))
-#             spinbox.pack(side="right", padx=5)
-#
-#         # Кнопка оформления заказа
-#         checkout_btn = ttk.Button(main_frame, text="Оформить заказ", command=self.checkout)
-#         checkout_btn.grid(row=len(cart_items)+1, column=0, pady=10)
-#
-#         # Кнопка отмены
-#         cancel_btn = ttk.Button(main_frame, text="Отмена", command=self.cancel)
-#         cancel_btn.grid(row=len(cart_items)+1, column=1, pady=10)
-#
-#     def on_spinbox_change(self, event, index):
-#         """Обрабатывает изменение количества товара в корзине."""
-#         widget = event.widget
-#         new_value = widget.get()
-#         try:
-#             quantity = int(new_value)
-#             if quantity >= 0 and quantity <= self.cart_items[index]["max_quantity"]:
-#                 self.cart_items[index]["quantity"] = quantity
-#                 self.update_total()
-#             else:
-#                 messagebox.showwarning("Внимание", "Введённое количество выходит за допустимый диапазон.", parent=self)
-#                 widget.delete(0, tk.END)
-#                 widget.insert(0, self.cart_items[index]["quantity"])
-#         except ValueError:
-#             messagebox.showwarning("Внимание", "Введите корректное число.", parent=self)
-#             widget.delete(0, tk.END)
-#             widget.insert(0, self.cart_items[index]["quantity"])
-#
-#     def update_total(self):
-#         """Обновляет итоговую сумму заказа."""
-#         total_amount = sum(item["price"] * item["quantity"] for item in self.cart_items)
-#         self.label_total.config(text=f"Общая сумма заказа: {total_amount:.2f} руб.")
-#
-#     def checkout(self):
-#         """Обращается к контроллеру для оформления заказа и показывает сообщение пользователю."""
-#         removed_items = []
-#         updated_cart_items = []
-#
-#         # Исключение товаров с нулевым количеством и запоминание удалённых товаров
-#         for item in self.cart_items:
-#             if item["quantity"] > 0:
-#                 updated_cart_items.append(item)
-#             else:
-#                 removed_items.append(item["name"])
-#
-#         if removed_items:
-#             messagebox.showinfo("Информация",
-#                                 f"В корзине товары с нулевым количеством были удалены: {', '.join(removed_items)}.",
-#                                 parent=self)
-#
-#         if not updated_cart_items:
-#             messagebox.showwarning("Внимание", "В корзине количество всех товаров изменилось на 0, заказ отменяется.",
-#                                    parent=self)
-#             self.parent.destroy()
-#             self.destroy()
-#             return
-#
-#         # Подготавливаем данные для отправки в контроллер
-#         final_cart_items = [{
-#             "product_id": item["product_id"],
-#             "quantity": item["quantity"]
-#         } for item in updated_cart_items]
-#
-#         success, message = self.parent.parent.controller.process_checkout(final_cart_items, self.customer_id)
-#         if success:
-#             messagebox.showinfo("Информация", message, parent=self)
-#             self.parent.destroy()
-#             self.parent.parent.load_orders()
-#         else:
-#             messagebox.showwarning("Внимание", message, parent=self)
-#         self.destroy()
-#
-#     def cancel(self):
-#         """Отменяет оформление заказа и закрывает окно корзины."""
-#         self.destroy()
+        self.parent.load_analysis()
 
 class EditOrderDialog(tk.Toplevel):
     def __init__(self, parent, order_id, controller):
@@ -1571,306 +1465,4 @@ class EditOrderDialog(tk.Toplevel):
         """Обновляет деревья в основном окне"""
         self.parent.load_orders()
         self.parent.load_products()
-
-# class EditOrderDialog(tk.Toplevel):
-#     def __init__(self, parent, order_id, controller):
-#         super().__init__(parent)
-#         self.parent = parent
-#         self.order_id = order_id
-#         self.controller = controller
-#         self.title("Редактировать заказ")
-#         self.resizable(False, False)
-#         self.build_form()
-#         self.original_order_items = {}  # Запоминаем первоначальный состав заказа
-#         self.load_order_data()
-#
-#     def build_form(self):
-#         form_frame = ttk.Frame(self)
-#         form_frame.pack(padx=10, pady=10)
-#
-#         # Верхний фрейм с информацией о заказе
-#         info_frame = ttk.Frame(form_frame)
-#         info_frame.pack(pady=10)
-#
-#         # ID заказа
-#         self.label_id = ttk.Label(info_frame, text=f"ID заказа: {self.order_id}")
-#         self.label_id.pack(side="top", anchor="w")
-#
-#         # Покупатель
-#         self.label_customer = ttk.Label(info_frame, text="Покупатель:")
-#         self.label_customer_value = ttk.Label(info_frame, text="")
-#         self.label_customer.pack(side="top", anchor="w")
-#         self.label_customer_value.pack(side="top", anchor="w")
-#
-#         # Состав заказа
-#         composition_frame = ttk.Frame(form_frame)
-#         composition_frame.pack(pady=10)
-#
-#         self.label_composition = ttk.Label(composition_frame, text="Состав заказа:")
-#         self.label_composition.pack(side="top", anchor="w")
-#
-#         # Дерево товаров в заказе
-#         self.order_items_treeview = ttk.Treeview(composition_frame, columns=("Название", "Количество"), height=5, show="headings")
-#         self.order_items_treeview.column("#1", anchor="w", width=200)
-#         self.order_items_treeview.column("#2", anchor="e", width=100)
-#         self.order_items_treeview.heading("Название", text="Название")
-#         self.order_items_treeview.heading("Количество", text="Количество")
-#         y_scrollbar = ttk.Scrollbar(composition_frame, orient="vertical", command=self.order_items_treeview.yview)
-#         y_scrollbar.pack(side="right", fill="y")
-#         self.order_items_treeview.configure(yscrollcommand=y_scrollbar.set)
-#         self.order_items_treeview.pack(side="top", fill="both", expand=True)
-#
-#         # Входное поле для изменения количества
-#         self.quantity_entry = ttk.Entry(composition_frame, width=10)
-#         self.quantity_entry.pack(side="left", padx=5)
-#         btn_change_qty = ttk.Button(composition_frame, text="Изменить количество", command=self.change_quantity)
-#         btn_change_qty.pack(side="left", padx=5)
-#
-#         # Продукты на складе
-#         stock_frame = ttk.Frame(form_frame)
-#         stock_frame.pack(pady=10)
-#
-#         self.label_stock = ttk.Label(stock_frame, text="Продукты на складе:")
-#         self.label_stock.pack(side="top", anchor="w")
-#
-#         # Дерево товаров на складе
-#         self.stock_treeview = ttk.Treeview(stock_frame, columns=("ID", "Наименование", "Цена", "Кол-во на складе"), height=5, show="headings")
-#         self.stock_treeview.column("#1", anchor="w", width=50)
-#         self.stock_treeview.column("#2", anchor="w", width=200)
-#         self.stock_treeview.column("#3", anchor="e", width=100)
-#         self.stock_treeview.column("#4", anchor="e", width=100)
-#         self.stock_treeview.heading("ID", text="ID")
-#         self.stock_treeview.heading("Наименование", text="Наименование")
-#         self.stock_treeview.heading("Цена", text="Цена")
-#         self.stock_treeview.heading("Кол-во на складе", text="Кол-во на складе")
-#         y_scrollbar_stock = ttk.Scrollbar(stock_frame, orient="vertical", command=self.stock_treeview.yview)
-#         y_scrollbar_stock.pack(side="right", fill="y")
-#         self.stock_treeview.configure(yscrollcommand=y_scrollbar_stock.set)
-#         self.stock_treeview.pack(side="top", fill="both", expand=True)
-#
-#         # Кнопка добавления товара в заказ
-#         btn_add_to_order = ttk.Button(stock_frame, text="Добавить в заказ", command=self.add_to_order)
-#         btn_add_to_order.pack(side="top", pady=5)
-#
-#         # Дата создания заказа
-#         self.label_date = ttk.Label(form_frame, text="Дата создания:")
-#         self.label_date_value = ttk.Label(form_frame, text="")
-#         self.label_date.pack(side="top", anchor="w")
-#         self.label_date_value.pack(side="top", anchor="w")
-#
-#         # Статус заказа
-#         self.label_status = ttk.Label(form_frame, text="Статус:")
-#         self.combo_status = ttk.Combobox(form_frame, state="readonly", values=["Новый", "Оплачен", "Отправлен", "Исполнен"])
-#         self.label_status.pack(side="top", anchor="w")
-#         self.combo_status.pack(side="top", anchor="w")
-#
-#         # Итоговая стоимость
-#         self.label_total = ttk.Label(form_frame, text="Итоговая стоимость:")
-#         self.label_total_value = ttk.Label(form_frame, text="")
-#         self.label_total.pack(side="top", anchor="w")
-#         self.label_total_value.pack(side="top", anchor="w")
-#
-#         # Кнопки
-#         apply_button = ttk.Button(form_frame, text="Применить изменения", command=self.apply_changes)
-#         cancel_button = ttk.Button(form_frame, text="Отмена", command=self.close_window)
-#         apply_button.pack(side="left", padx=5)
-#         cancel_button.pack(side="right", padx=5)
-#
-#     def load_order_data(self):
-#         order = self.controller.find_order_by_id(self.order_id)
-#         if order:
-#             # Основные данные заказа
-#             customer = self.controller.find_customer_by_id(order.customer_id)
-#             self.label_customer_value.config(text=customer.name)
-#             self.label_date_value.config(text=order.date_created.strftime("%Y-%m-%d %H:%M:%S"))
-#             self.label_total_value.config(text=f"{order.total_amount:.2f}")
-#             self.combo_status.set(order.status)
-#
-#             # Загружаем товары в заказе
-#             items = self.controller.find_order_list_by_id(self.order_id)
-#             for item in items:
-#                 product = self.controller.find_product_by_id(item.product_id)
-#                 self.order_items_treeview.insert("", "end", values=(product.name, item.quantity))
-#                 self.original_order_items[item.product_id] = item.quantity  # Запоминаем изначальное количество
-#
-#             # Загружаем товары на складе
-#             products = self.controller.load_products()
-#             for product in products:
-#                 self.stock_treeview.insert("", "end", values=(product.id, product.name, product.price, product.quantity))
-#
-#     def close_window(self):
-#         """Закрытие окна без сохранения изменений"""
-#         self.destroy()
-#
-#     def change_quantity(self):
-#         """Изменяет количество товара в заказе"""
-#         selected = self.order_items_treeview.selection()
-#         if not selected:
-#             messagebox.showwarning("Внимание", "Выберите товар в заказе!", parent=self)
-#             return
-#
-#         # Проверка статуса заказа
-#         order = self.controller.find_order_by_id(self.order_id)
-#         if order.status != "Новый":
-#             messagebox.showwarning("Внимание",
-#                                    "Изменение количества товара возможно только для заказов со статусом 'Новый'", parent=self)
-#             return
-#
-#         try:
-#             new_quantity = int(self.quantity_entry.get())
-#         except ValueError:
-#             messagebox.showwarning("Ошибка", "Введите корректное целое число.", parent=self)
-#             return
-#
-#         item = self.order_items_treeview.item(selected[0])
-#         product_name = item["values"][0]
-#         product = next((p for p in self.controller.load_products() if p.name == product_name), None)
-#         if not product:
-#             messagebox.showwarning("Ошибка", "Товар не найден.", parent=self)
-#             return
-#
-#         # Правильно берём исходное количество товара из оригинального словаря
-#         product_id = product.id
-#         old_quantity = self.original_order_items.get(product_id, 0)
-#
-#         # Рассчитываем разницу между старым и новым значением
-#         diff = new_quantity - old_quantity
-#
-#         # Максимальное разрешённое количество товара
-#         max_available = product.quantity + old_quantity
-#         min_allowed = 0
-#
-#         # Проверка на минимальное и максимальное количество
-#         if new_quantity < min_allowed or new_quantity > max_available:
-#             messagebox.showwarning("Ошибка",
-#                                    f"Для товара '{product_name}' диапазон изменения количества от {min_allowed} до {max_available}.", parent=self)
-#             return
-#
-#         # Обновляем дерево товаров в заказе
-#         self.order_items_treeview.set(selected[0], column="#2", value=new_quantity)
-#
-#         # Обновляем количество товара на складе (до применения изменений)
-#         product.quantity -= diff  # Меняем количество товара на складе
-#         for child in self.stock_treeview.get_children():
-#             values = self.stock_treeview.item(child)["values"]
-#             if values[1] == product.name:
-#                 self.stock_treeview.set(child, column="#4", value=product.quantity)
-#
-#         # Обновляем итоговую сумму заказа
-#         self.update_total_amount()
-#
-#         # Сообщаем пользователю об успешном изменении
-#         messagebox.showinfo("Информация", f"Количество товара '{product_name}' изменено на {new_quantity}.", parent=self)
-#
-#     def add_to_order(self):
-#         """Добавляет товар из склада в заказ"""
-#         selected = self.stock_treeview.selection()
-#         if not selected:
-#             messagebox.showwarning("Внимание", "Выберите товар на складе!", parent=self)
-#             return
-#
-#         item = self.stock_treeview.item(selected[0])
-#         product_id = int(item["values"][0])
-#         product_name = item["values"][1]
-#         product = self.controller.find_product_by_id(product_id)
-#         if product.quantity < 1:
-#             messagebox.showwarning("Ошибка", f"На данный момент товар '{product_name}' отсутствует на складе, добавление отменено.", parent=self)
-#             return
-#
-#         # Проверка статуса заказа
-#         order = self.controller.find_order_by_id(self.order_id)
-#         if order.status != "Новый":
-#             messagebox.showwarning("Внимание", "Изменение списка товаров возможно только для заказов со статусом 'Новый'", parent=self)
-#             return
-#
-#         # Добавляем товар в заказ
-#         self.order_items_treeview.insert("", "end", values=(product_name, 1))
-#
-#         # Уменьшаем количество товара на складе (временно, до сохранения)
-#         product.quantity -= 1
-#         self.stock_treeview.set(selected[0], column="#4", value=product.quantity)
-#
-#         # Обновляем итоговую сумму заказа
-#         self.update_total_amount()
-#
-#         # Сообщаем пользователю об успешном добавлении
-#         messagebox.showinfo("Информация", f"Товар '{product_name}' добавлен в заказ.", parent=self)
-#
-#     def update_total_amount(self):
-#         """Обновляет итоговую сумму заказа"""
-#         total_amount = 0.0
-#
-#         # Проходим по всем товарам в дереве товаров заказа
-#         for child in self.order_items_treeview.get_children():
-#             values = self.order_items_treeview.item(child)["values"]
-#             product_name = values[0]
-#             quantity = int(values[1])
-#
-#             # Найти продукт по его названию
-#             product = next((p for p in self.controller.load_products() if p.name == product_name), None)
-#             if product:
-#                 # Умножаем цену продукта на количество и добавляем к общей сумме
-#                 total_amount += product.price * quantity
-#
-#         # Обновляем метку итоговой суммы
-#         self.label_total_value.config(text=f"{total_amount:.2f}")
-#
-#     def apply_changes(self):
-#         """Применяет изменения в заказе"""
-#         # Проверка статуса заказа
-#         order = self.controller.find_order_by_id(self.order_id)
-#         current_status = order.status
-#
-#         # Вспомогательная функция для получения идентификатора товара по его названию
-#         def find_product_id_by_name(name):
-#             product = next((p for p in self.controller.load_products() if p.name == name), None)
-#             return product.id if product else None
-#
-#         # Проверка на изменения в составе заказа
-#         changed = any([
-#             int(self.order_items_treeview.item(child)["values"][1]) != self.original_order_items.get(
-#                 find_product_id_by_name(self.order_items_treeview.item(child)["values"][0]), 0)
-#             for child in self.order_items_treeview.get_children()
-#         ])
-#
-#         if changed and current_status != "Новый":
-#             # Произошли изменения в составе заказа, но статус отличен от "Новый"
-#             messagebox.showwarning("Внимание",
-#                                    "Изменения в составе заказа невозможны, так как статус заказа изменён. Верните статус на 'Новый' или отмените изменения.", parent=self)
-#             return
-#
-#         # Обновляем состав заказа
-#         updated_items = []
-#         for child in self.order_items_treeview.get_children():
-#             values = self.order_items_treeview.item(child)["values"]
-#             product_name = values[0]
-#             quantity = int(values[1])
-#             product = next((p for p in self.controller.load_products() if p.name == product_name), None)
-#             if product:
-#                 updated_items.append(OrderItem(product_id=product.id, quantity=quantity))
-#
-#         # Обновляем список товаров в заказе
-#         self.controller.delete_order_list(self.order_id)
-#         for item in updated_items:
-#             self.controller.add_order_item(self.order_id, item)
-#
-#         # Обновляем статус заказа
-#         new_status = self.combo_status.get()
-#         if new_status:
-#             self.controller.update_order(self.order_id, {"status": new_status})
-#
-#         # Обновляем основную информацию заказа
-#         total_amount = sum(
-#             item.quantity * self.controller.find_product_by_id(item.product_id).price for item in updated_items)
-#         self.controller.update_order(self.order_id, {"total_amount": total_amount})
-#
-#         # Обновляем интерфейс
-#         self.load_order_data()
-#         messagebox.showinfo("Информация", "Изменения успешно применены.", parent=self)
-#         self.refresh_trees()
-#         self.destroy()  # Закрываем окно после успешного применения изменений
-#
-#     def refresh_trees(self):
-#         """Обновляет деревья в основном окне"""
-#         self.parent.load_orders()
-#         self.parent.load_products()
+        self.parent.load_analysis()
