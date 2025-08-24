@@ -1,3 +1,5 @@
+from fontTools.qu2cu.qu2cu import Tuple
+
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 from db import (
