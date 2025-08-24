@@ -585,8 +585,13 @@ class AppController:
             (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
         errors = []
-        if not data.get('name', '').strip():
-            errors.append("Название товара обязательно для заполнения.")
+
+        # Проверка обязательного заполнения всех полей
+        required_fields = {'name', 'price', 'quantity'}
+        for field in required_fields:
+            if not data.get(field, '').strip():
+                errors.append(f"Поле '{field.capitalize()}' обязательно для заполнения.")
+
         price = data.get('price')
         quantity = data.get('quantity')
         try:
