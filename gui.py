@@ -1,6 +1,9 @@
-import tkinter as tk
-from operator import truediv
+"""
+Интерфейс графического приложения для управления интернет-магазином.
+Реализует управление клиентами, товарами, заказами и аналитические отчёты.
+"""
 
+import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -10,7 +13,27 @@ from tkinter.filedialog import askopenfilename, asksaveasfilename
 from controllers import AppController
 
 class MainApp(tk.Tk):
+    """
+    Главный класс приложения для управления интернет-магазином.
+
+    Attributes
+    ----------
+    title : str
+        Заголовок окна приложения.
+    geometry : str
+        Размер окна приложения.
+    controller : AppController
+        Контроллер для взаимодействия с бизнес-логикой.
+    sort_params : dict
+        Параметры сортировки данных.
+    search_entries : dict
+        Словарь для хранения ссылок на поля поиска.
+    """
+
     def __init__(self):
+        """
+        Инициализация главного окна приложения.
+        """
         super().__init__()
         plt.ioff()
         self.title("Интернет-магазин | Менеджмент клиентов и заказов")
@@ -18,10 +41,18 @@ class MainApp(tk.Tk):
         self.controller = AppController(self)
         self.create_menus()
         self.sort_params = {"heading": "id", "id": "asc"}  # Глобальная переменная для хранения настроек сортировки
+        # Изначально создаем пустой словарь для ссылок на поля поиска
+        self.search_entries = {
+            "customers": None,
+            "products": None,
+            "orders": None
+        }
         self.create_tabs()
 
-
     def create_menus(self):
+        """
+        Создание пунктов меню в приложении.
+        """
         menu_bar = tk.Menu(self)
         file_menu = tk.Menu(menu_bar, tearoff=False)
         file_menu.add_command(label="Выход", command=self.quit)
@@ -36,13 +67,21 @@ class MainApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def on_close(self):
-        # Завершаем приложение
+        """
+        Обработчик события закрытия окна.
+        """
         self.quit()
 
     def show_about_dialog(self):
-        messagebox.showinfo("О программе", "Программа для управления магазином\nВерсия 1.0\nАвтор: Фёдоров Алексей")
+        """
+        Показ информационного окна о программе.
+        """
+        messagebox.showinfo("О программе", "Программа для управления магазином\nВерсия 2.0\nАвтор: Фёдоров Алексей")
 
     def create_tabs(self):
+        """
+        Создание вкладок в главном окне приложения.
+        """
         tab_control = ttk.Notebook(self)
         self.tab_customers = ttk.Frame(tab_control)
         self.tab_products = ttk.Frame(tab_control)
@@ -63,7 +102,37 @@ class MainApp(tk.Tk):
         self.setup_orders_tab()
         self.setup_analysis_tab()
 
+    def clear_search_field(self, section):
+        """
+        Очистка поискового поля для заданной вкладки.
+
+        Parameters
+        ----------
+        section : str
+            Идентификатор вкладки ('customers', 'products', 'orders'), определяющий, какое поле поиска очищать.
+        """
+        if section is None:
+            # Чистка всех полей сразу
+            for entry in self.search_entries.values():
+                if entry is not None:
+                    entry.delete(0, tk.END)
+        else:
+            # Чистка конкретного поля
+            entry = self.search_entries[section]
+            if entry is not None:
+                entry.delete(0, tk.END)
+        # Дополнительно перезагрузить соответствующие данные
+        if section == "customers":
+            self.load_customers()
+        elif section == "products":
+            self.load_products()
+        elif section == "orders":
+            self.load_orders()
+
     def setup_customers_tab(self):
+        """
+        Настройка вкладки "Клиенты".
+        """
         frame = ttk.LabelFrame(self.tab_customers, text="Управление клиентами")
         frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
@@ -71,13 +140,13 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск клиентов:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_customers)
         search_button.pack(side="right")
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
-        search_entry.pack(side="right")
+        self.search_entries["customers"] = ttk.Entry(search_frame, textvariable=self.search_var)
+        self.search_entries["customers"].pack(side="right")
         search_frame.pack(fill="x", padx=5, pady=5)
 
         # Дерево результатов поиска
@@ -107,11 +176,6 @@ class MainApp(tk.Tk):
         # Загрузка данных при запуске
         self.load_customers()
 
-        # Функция для очистки поля поиска клиента
-        def clear_search_field():
-            search_entry.delete(0, tk.END)  # Очищаем поле ввода
-            self.load_customers()
-
     def load_customers(self):
         """
         Обновляет дерево клиентов на основании данных, полученных от контроллера.
@@ -122,6 +186,9 @@ class MainApp(tk.Tk):
             self.customers_treeview.insert("", "end", values=(cust.id, cust.name, cust.email, cust.phone))
 
     def search_customers(self):
+        """
+        Осуществляет поиск клиентов по введенному запросу.
+        """
         keyword = self.search_var.get().strip()
         filtered_customers = self.controller.search_customers(keyword)
         self.customers_treeview.delete(*self.customers_treeview.get_children())
@@ -129,9 +196,15 @@ class MainApp(tk.Tk):
             self.customers_treeview.insert("", "end", values=(cust.id, cust.name, cust.email, cust.phone))
 
     def open_add_customer_dialog(self):
+        """
+        Открывает диалоговое окно для добавления нового клиента.
+        """
         AddCustomerDialog(self)
 
     def edit_selected_customer(self):
+        """
+        Открывает диалоговое окно для редактирования выбранного клиента.
+        """
         selected = self.customers_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите клиента перед редактированием!")
@@ -140,6 +213,9 @@ class MainApp(tk.Tk):
         EditCustomerDialog(self, customer_id=int(item[0]))
 
     def delete_selected_customer(self):
+        """
+        Удаляет выбранного клиента.
+        """
         selected = self.customers_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите клиента перед удалением!")
@@ -193,6 +269,9 @@ class MainApp(tk.Tk):
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
 
     def setup_products_tab(self):
+        """
+        Настройка вкладки "Товары".
+        """
         frame = ttk.LabelFrame(self.tab_products, text="Управление товарами")
         frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
@@ -200,13 +279,13 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск товаров:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_products)
         search_button.pack(side="right")
         self.search_prod_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_prod_var)
-        search_entry.pack(side="right")
+        self.search_entries["products"] = ttk.Entry(search_frame, textvariable=self.search_prod_var)
+        self.search_entries["products"].pack(side="right")
         search_frame.pack(fill="x", padx=5, pady=5)
 
         # Дерево результатов поиска
@@ -236,11 +315,6 @@ class MainApp(tk.Tk):
         # Загрузка данных при запуске
         self.load_products()
 
-        # Функция для очистки поля поиска товара
-        def clear_search_field():
-            search_entry.delete(0, tk.END)  # Очищаем поле ввода
-            self.load_products()
-
     def load_products(self):
         """
         Обновляет дерево товаров на основании данных, полученных от контроллера.
@@ -251,6 +325,9 @@ class MainApp(tk.Tk):
             self.products_treeview.insert("", "end", values=(prod.id, prod.name, prod.price, prod.quantity))
 
     def search_products(self):
+        """
+        Осуществляет поиск товаров по введенному запросу.
+        """
         keyword = self.search_prod_var.get().strip()
         filtered_products = self.controller.search_products(keyword)
         self.products_treeview.delete(*self.products_treeview.get_children())
@@ -258,9 +335,15 @@ class MainApp(tk.Tk):
             self.products_treeview.insert("", "end", values=(prod.id, prod.name, prod.price, prod.quantity))
 
     def open_add_product_dialog(self):
+        """
+        Открывает диалоговое окно для добавления нового товара.
+        """
         AddProductDialog(self)
 
     def edit_selected_product(self):
+        """
+        Открывает диалоговое окно для редактирования выбранного товара.
+        """
         selected = self.products_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите товар перед редактированием!")
@@ -269,6 +352,9 @@ class MainApp(tk.Tk):
         EditProductDialog(self, product_id=int(item[0]))
 
     def delete_selected_product(self):
+        """
+        Удаляет выбранный товар.
+        """
         selected = self.products_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите товар перед удалением!")
@@ -322,6 +408,9 @@ class MainApp(tk.Tk):
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
 
     def setup_orders_tab(self):
+        """
+        Настройка вкладки "Заказы".
+        """
         frame = ttk.LabelFrame(self.tab_orders, text="Управление заказами")
         frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
@@ -329,13 +418,13 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск заказов:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_orders)
         search_button.pack(side="right")
         self.search_ord_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_ord_var)
-        search_entry.pack(side="right")
+        self.search_entries["orders"] = ttk.Entry(search_frame, textvariable=self.search_ord_var)
+        self.search_entries["orders"].pack(side="right")
         search_frame.pack(fill="x", padx=5, pady=5)
 
         # Дерево результатов поиска
@@ -375,12 +464,15 @@ class MainApp(tk.Tk):
         # Загрузка данных при запуске
         self.load_orders()
 
-        # Функция для очистки поля поиска заказа
-        def clear_search_field():
-            search_entry.delete(0, tk.END)  # Очищаем поле ввода
-            self.load_orders()
-
     def sort_orders(self, column):
+        """
+        Сортирует заказы по указанному полю.
+
+        Parameters
+        ----------
+        column : str
+            Название колонки для сортировки.
+        """
         # Получаем текущее направление сортировки для указанного столбца
         new_column = 'id'
         if column == 'Дата создания':
@@ -413,6 +505,9 @@ class MainApp(tk.Tk):
                                         values=(ord.id, customer_name, ord.date_created, ord.status, ord.total_amount))
 
     def search_orders(self):
+        """
+        Осуществляет поиск заказов по введенному запросу.
+        """
         keyword = self.search_ord_var.get().strip()
         filtered_orders = self.controller.search_orders(keyword)
         self.orders_treeview.delete(*self.orders_treeview.get_children())
@@ -426,9 +521,15 @@ class MainApp(tk.Tk):
                                         values=(ord.id, customer_name, ord.date_created, ord.status, ord.total_amount))
 
     def open_add_order_dialog(self):
+        """
+        Открывает диалоговое окно для добавления нового заказа.
+        """
         AddOrderDialog(self, controller=self.controller)
 
     def edit_selected_order(self):
+        """
+        Открывает диалоговое окно для редактирования выбранного заказа.
+        """
         selected = self.orders_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите заказ перед редактированием!")
@@ -437,6 +538,9 @@ class MainApp(tk.Tk):
         EditOrderDialog(self, order_id=int(item[0]), controller=self.controller)
 
     def delete_selected_order(self):
+        """
+        Удаляет выбранный заказ.
+        """
         selected = self.orders_treeview.selection()
         if not selected:
             messagebox.showwarning("Ошибка", "Выберите заказ перед удалением!")
@@ -486,6 +590,9 @@ class MainApp(tk.Tk):
                 messagebox.showerror("Ошибка импорта", f"Возникла ошибка при импорте: {error_msg}")
 
     def setup_analysis_tab(self):
+        """
+        Настройка вкладки "Аналитика и визуализация".
+        """
         frame = ttk.LabelFrame(self.tab_analysis, text="Аналитика и визуализация")
         frame.pack(padx=10, pady=10, fill="x", side="top", expand=True, anchor="n")
 
@@ -500,11 +607,11 @@ class MainApp(tk.Tk):
         # Внутренние фреймы для ограничения роста графиков
         self.canvas1_frame = ttk.Frame(upper_row_frame, width=600, height=400)
         self.canvas1_frame.pack_propagate(False)
-        self.canvas1_frame.pack(side=tk.LEFT, fill=None, expand=False)
+        self.canvas1_frame.pack(side=tk.LEFT, fill="none", expand=False)
 
         self.canvas2_frame = ttk.Frame(upper_row_frame, width=600, height=400)
         self.canvas2_frame.pack_propagate(False)
-        self.canvas2_frame.pack(side=tk.RIGHT, fill=None, expand=False)
+        self.canvas2_frame.pack(side=tk.RIGHT, fill="none", expand=False)
 
         # Внутренний фрейм для нижнего ряда (третий график)
         lower_row_frame = ttk.Frame(graphs_frame)
@@ -517,7 +624,12 @@ class MainApp(tk.Tk):
 
     def build_fig1(self, data):
         """
-        Создаем фигуру для первого графика (Top Customers)
+        Создает первую диаграмму (топ-5 клиентов по количеству заказов).
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Данные для построения диаграммы.
         """
         fig1 = Figure(figsize=(4, 4), dpi=80)
         ax1 = fig1.add_subplot(111)
@@ -535,7 +647,12 @@ class MainApp(tk.Tk):
 
     def build_fig2(self, data):
         """
-        Создаем фигуру для второго графика (Orders Over Time)
+        Создает вторую диаграмму (количество заказов по датам).
+
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            Данные для построения диаграммы.
         """
         fig2 = Figure(figsize=(4, 4), dpi=80)
         ax2 = fig2.add_subplot(111)
@@ -553,7 +670,12 @@ class MainApp(tk.Tk):
 
     def build_fig3(self, data):
         """
-        Создание графа NetworkX
+        Создает третий график (граф связей покупателей по общим товарам).
+
+        Parameters
+        ----------
+        data : list of tuples
+            Список ребер графа для NetworkX.
         """
         G = nx.Graph()
         G.add_weighted_edges_from(data)
@@ -574,7 +696,7 @@ class MainApp(tk.Tk):
 
     def load_analysis(self):
         """
-        Обновляет вкладу Analysis, чтобы перестроились графики, в случае изменения данных в БД.
+        Отображает аналитические графики на вкладке "Анализ".
         """
         # Получаем данные из БД
         top5_data = self.controller.fetch_top5_customers()
@@ -600,6 +722,14 @@ class MainApp(tk.Tk):
         self.build_fig3(data3)
 
 class AddCustomerDialog(tk.Toplevel):
+    """
+    Окно для добавления нового клиента.
+
+    Attributes
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    """
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -640,6 +770,9 @@ class AddCustomerDialog(tk.Toplevel):
         button_cancel.grid(row=0, column=1, padx=5)
 
     def save_customer(self):
+        """
+        Передает данные клиента в контроллер для сохрания в базу данных.
+        """
         name = self.entry_name.get().strip()
         email = self.entry_email.get().strip()
         phone = self.entry_phone.get().strip()
@@ -656,9 +789,12 @@ class AddCustomerDialog(tk.Toplevel):
             success, error_msg = self.parent.controller.add_customer(data)
 
             if success:
-                #Обновляем дерево клиентов
-                self.parent.load_customers()
+                #Очищаем поле поиска вкладки клиентов, заодно обновляем дерево клиентов
+                self.parent.clear_search_field(section="customers")
+
+                #Перестраиваем графики с учетом добавления нового клиента
                 self.parent.load_analysis()
+
                 # Закрываем окно только при успехе
                 self.destroy()
             else:
@@ -669,6 +805,17 @@ class AddCustomerDialog(tk.Toplevel):
             messagebox.showerror("Ошибка", str(err), parent=self)
 
 class EditCustomerDialog(tk.Toplevel):
+    """
+    Окно для редактирования информации о клиенте.
+
+    Parameters
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    customer_id : int
+        Уникальный идентификатор клиента.
+    """
+
     def __init__(self, parent, customer_id):
         super().__init__(parent)
         self.parent = parent
@@ -679,6 +826,9 @@ class EditCustomerDialog(tk.Toplevel):
         self.load_customer_data()
 
     def build_form(self):
+        """
+        Создает интерфейс для редактирования информации о клиенте.
+        """
         form_frame = ttk.Frame(self)
         form_frame.pack(padx=10, pady=10)
 
@@ -705,6 +855,9 @@ class EditCustomerDialog(tk.Toplevel):
         button_cancel.grid(row=3, column=1, pady=10)
 
     def load_customer_data(self):
+        """
+        Загружает информацию о клиенте из контроллера и отображает её в полях ввода.
+        """
         customer = self.parent.controller.find_customer_by_id(self.customer_id)
         if customer:
             self.entry_name.delete(0, tk.END)
@@ -715,6 +868,9 @@ class EditCustomerDialog(tk.Toplevel):
             self.entry_phone.insert(0, customer.phone)
 
     def save_customer(self):
+        """
+        Сохраняет изменения клиента в базу данных через контроллер.
+        """
         name = self.entry_name.get().strip()
         email = self.entry_email.get().strip()
         phone = self.entry_phone.get().strip()
@@ -723,8 +879,13 @@ class EditCustomerDialog(tk.Toplevel):
         try:
             success, error_msg = self.parent.controller.edit_customer(self.customer_id, {"name": name, "email": email, "phone": phone})
             if success:
-                self.parent.load_customers()
+                # Очищаем поле поиска вкладки клиентов, заодно обновляем дерево клиентов
+                self.parent.clear_search_field(section="customers")
+
+                # Перестраиваем графики с учетом добавления нового клиента
                 self.parent.load_analysis()
+
+                # Закрываем окно только при успехе
                 self.destroy()
             else:
                 messagebox.showerror("Ошибка", error_msg, parent=self)
@@ -732,6 +893,14 @@ class EditCustomerDialog(tk.Toplevel):
             messagebox.showerror("Ошибка", str(err), parent=self)
 
 class AddProductDialog(tk.Toplevel):
+    """
+    Окно для добавления нового товара.
+
+    Parameters
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    """
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -772,6 +941,9 @@ class AddProductDialog(tk.Toplevel):
         button_cancel.grid(row=0, column=1, padx=5)
 
     def save_product(self):
+        """
+        Сохраняет новый товар в базу данных через контроллер.
+        """
         name = self.entry_name.get().strip()
         price = self.entry_price.get().strip()
         quantity = self.entry_quantity.get().strip()
@@ -788,9 +960,12 @@ class AddProductDialog(tk.Toplevel):
             success, error_msg = self.parent.controller.add_product(data)
 
             if success:
-                # Обновление дерева товаров
-                self.parent.load_products()
+                # Очищаем поле поиска вкладки товаров, заодно обновляем дерево товаров
+                self.parent.clear_search_field(section="products")
+
+                # Перестраиваем графики с учетом добавления нового товара
                 self.parent.load_analysis()
+
                 # Закрываем окно только при успехе
                 self.destroy()
             else:
@@ -801,6 +976,16 @@ class AddProductDialog(tk.Toplevel):
             messagebox.showerror("Ошибка", str(err), parent=self)
 
 class EditProductDialog(tk.Toplevel):
+    """
+    Окно для редактирования информации о товаре.
+
+    Parameters
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    product_id : int
+        Уникальный идентификатор товара.
+    """
     def __init__(self, parent, product_id):
         super().__init__(parent)
         self.parent = parent
@@ -811,6 +996,9 @@ class EditProductDialog(tk.Toplevel):
         self.load_product_data()
 
     def build_form(self):
+        """
+        Создает интерфейс для редактирования информации о товаре.
+        """
         form_frame = ttk.Frame(self)
         form_frame.pack(padx=10, pady=10)
 
@@ -839,6 +1027,9 @@ class EditProductDialog(tk.Toplevel):
         button_cancel.grid(row=3, column=1, pady=10)
 
     def load_product_data(self):
+        """
+        Загружает информацию о товаре из контроллера и отображает её в полях ввода.
+        """
         product = self.parent.controller.find_product_by_id(self.product_id)
         if product:
             self.entry_name.delete(0, tk.END)
@@ -849,6 +1040,9 @@ class EditProductDialog(tk.Toplevel):
             self.entry_quantity.insert(0, product.quantity)
 
     def save_product(self):
+        """
+        Сохраняет изменения товара в базу данных через контроллер.
+        """
         name = self.entry_name.get().strip()
         price = self.entry_price.get().strip()
         quantity = self.entry_quantity.get().strip()
@@ -857,8 +1051,13 @@ class EditProductDialog(tk.Toplevel):
         try:
             success, error_msg = self.parent.controller.edit_product(self.product_id, {"name": name, "price": price, "quantity": quantity})
             if success:
-                self.parent.load_products()
+                # Очищаем поле поиска вкладки товаров, заодно обновляем дерево товаров
+                self.parent.clear_search_field(section="products")
+
+                # Перестраиваем графики с учетом редактирования товара
                 self.parent.load_analysis()
+
+                # Закрываем окно только при успехе
                 self.destroy()
             else:
                 messagebox.showerror("Ошибка", error_msg, parent=self)
@@ -866,6 +1065,16 @@ class EditProductDialog(tk.Toplevel):
             messagebox.showerror("Ошибка", str(err), parent=self)
 
 class AddOrderDialog(tk.Toplevel):
+    """
+    Диалоговое окно для создания нового заказа.
+
+    Parameters
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    controller : AppController
+        Контроллер приложения для взаимодействия с базовыми функциями.
+    """
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.parent = parent
@@ -877,6 +1086,9 @@ class AddOrderDialog(tk.Toplevel):
         self.total_amount = 0.0
 
     def build_form(self):
+        """
+        Формирует пользовательский интерфейс для создания заказа.
+        """
         form_frame = ttk.Frame(self)
         form_frame.pack(padx=10, pady=10)
 
@@ -963,6 +1175,9 @@ class AddOrderDialog(tk.Toplevel):
         self.load_order_data()
 
     def load_order_data(self):
+        """
+        Загружает начальные данные заказа (список покупателей и доступные товары).
+        """
         # Основные данные заказа
         # Загрузка списка покупателей
         customers = self.controller.load_customers()
@@ -974,24 +1189,21 @@ class AddOrderDialog(tk.Toplevel):
         # ОЧИСТКА ДЕРЕВА СКЛАДА ПЕРЕД ЗАГРУЗКОЙ
         self.stock_treeview.delete(*self.order_items_treeview.get_children())
 
-        # # Загружаем товары в заказе
-        # items = self.controller.find_order_list_by_id(self.order_id)
-        # for item in items:
-        #     product = self.controller.find_product_by_id(item.product_id)
-        #     self.order_items_treeview.insert("", "end", values=(product.name, item.quantity))
-        #     self.original_order_items[item.product_id] = item.quantity  # Запоминаем изначальное количество
-
         # Загружаем товары на складе
         products = self.controller.load_products()
         for product in products:
             self.stock_treeview.insert("", "end", values=(product.id, product.name, product.price, product.quantity))
 
     def close_window(self):
-        """Закрытие окна без сохранения изменений"""
+        """
+        Закрывает окно без сохранения изменений.
+        """
         self.destroy()
 
     def change_quantity(self):
-        """Изменяет количество товара в заказе"""
+        """
+        Изменяет количество товара в заказе.
+        """
         selected = self.order_items_treeview.selection()
         if not selected:
             messagebox.showwarning("Внимание", "Выберите товар в заказе!", parent=self)
@@ -1009,13 +1221,6 @@ class AddOrderDialog(tk.Toplevel):
         if not product:
             messagebox.showwarning("Ошибка", "Товар не найден.", parent=self)
             return
-
-        # # Берём исходное количество товара из оригиналов
-        # product_id = product.id
-        # old_quantity = self.original_order_items.get(product_id, 0)
-
-        # Рассчитываем разницу между старым и новым значением
-        # diff = new_quantity - old_quantity
 
         # Максимальное разрешённое количество товара
         max_available = product.quantity
@@ -1044,7 +1249,9 @@ class AddOrderDialog(tk.Toplevel):
         messagebox.showinfo("Информация", f"Количество товара '{product_name}' изменено на {new_quantity}.", parent=self)
 
     def add_to_order(self):
-        """Добавляет товар из склада в заказ"""
+        """
+        Добавляет товар из склада в заказ.
+        """
         selected = self.stock_treeview.selection()
         if not selected:
             messagebox.showwarning("Внимание", "Выберите товар на складе!", parent=self)
@@ -1090,7 +1297,9 @@ class AddOrderDialog(tk.Toplevel):
         messagebox.showinfo("Информация", f"Товар '{product_name}' с количеством 1 добавлен в заказ.", parent=self)
 
     def update_total_amount(self):
-        """Обновляет итоговую сумму заказа"""
+        """
+        Пересчитывает общую сумму заказа исходя из текущих товаров и их цен.
+        """
         total_amount = 0.0
 
         # Проходим по всем товарам в дереве товаров заказа
@@ -1110,8 +1319,9 @@ class AddOrderDialog(tk.Toplevel):
         return total_amount
 
     def apply_changes(self):
-        """Оформляет заказ"""
-
+        """
+        Оформляет заказ, отправляя данные контроллеру и закрывает окно.
+        """
         # Подготовка состава заказа
         removed_items = []
         updated_items = []
@@ -1139,8 +1349,9 @@ class AddOrderDialog(tk.Toplevel):
         success, message = self.controller.process_checkout(updated_items, self.customer_map[self.combo_customer.get()])
         if success:
             messagebox.showinfo("Информация", message, parent=self)
-            self.parent.load_orders()
-            self.parent.load_analysis()
+            # Очищаем поле поиска вкладки заказов
+            self.parent.clear_search_field(section="orders")
+
         else:
             messagebox.showwarning("Внимание", message, parent=self)
         self.destroy()
@@ -1150,12 +1361,26 @@ class AddOrderDialog(tk.Toplevel):
         self.destroy()  # Закрываем окно после успешного создания заказа
 
     def refresh_trees(self):
-        """Обновляет деревья в основном окне"""
+        """
+        Обновляет таблицы заказов, товаров и аналитику в главном окне.
+        """
         self.parent.load_orders()
         self.parent.load_products()
         self.parent.load_analysis()
 
 class EditOrderDialog(tk.Toplevel):
+    """
+    Диалоговое окно для редактирования заказа.
+
+    Parameters
+    ----------
+    parent : tk.Tk
+        Родительское окно.
+    order_id : int
+        Уникальный идентификатор заказа.
+    controller : AppController
+        Контроллер приложения для взаимодействия с основными операциями.
+    """
     def __init__(self, parent, order_id, controller):
         super().__init__(parent)
         self.parent = parent
@@ -1168,6 +1393,9 @@ class EditOrderDialog(tk.Toplevel):
         self.load_order_data()
 
     def build_form(self):
+        """
+        Формирует пользовательский интерфейс окна редактирования заказа.
+        """
         form_frame = ttk.Frame(self)
         form_frame.pack(padx=10, pady=10)
 
@@ -1269,6 +1497,9 @@ class EditOrderDialog(tk.Toplevel):
         cancel_button.pack(side="right", padx=5)
 
     def load_order_data(self):
+        """
+        Загружает данные текущего заказа и выводит их в форме.
+        """
         order = self.controller.find_order_by_id(self.order_id)
         if order:
             # Основные данные заказа
@@ -1294,11 +1525,15 @@ class EditOrderDialog(tk.Toplevel):
                 self.stock_treeview.insert("", "end", values=(product.id, product.name, product.price, product.quantity))
 
     def close_window(self):
-        """Закрытие окна без сохранения изменений"""
+        """
+        Закрывает окно без сохранения изменений.
+        """
         self.destroy()
 
     def change_quantity(self):
-        """Изменяет количество товара в заказе"""
+        """
+        Изменяет количество товара в заказе.
+        """
         selected = self.order_items_treeview.selection()
         if not selected:
             messagebox.showwarning("Внимание", "Выберите товар в заказе!", parent=self)
@@ -1357,7 +1592,9 @@ class EditOrderDialog(tk.Toplevel):
         messagebox.showinfo("Информация", f"Количество товара '{product_name}' изменено на {new_quantity}.", parent=self)
 
     def add_to_order(self):
-        """Добавляет товар из склада в заказ"""
+        """
+        Добавляет товар из склада в заказ.
+        """
         selected = self.stock_treeview.selection()
         if not selected:
             messagebox.showwarning("Внимание", "Выберите товар на складе!", parent=self)
@@ -1391,7 +1628,9 @@ class EditOrderDialog(tk.Toplevel):
         messagebox.showinfo("Информация", f"Товар '{product_name}' добавлен в заказ.", parent=self)
 
     def update_total_amount(self):
-        """Обновляет итоговую сумму заказа"""
+        """
+        Обновляет итоговую сумму заказа исходя из текущих товаров и их количеств.
+        """
         total_amount = 0.0
 
         # Проходим по всем товарам в дереве товаров заказа
@@ -1411,20 +1650,17 @@ class EditOrderDialog(tk.Toplevel):
         return total_amount
 
     def apply_changes(self):
-        """Применяет изменения в заказе"""
+        """
+        Применяет изменения в заказе, сохраняя их в базе данных.
+        """
         # Проверка статуса заказа
         order = self.controller.find_order_by_id(self.order_id)
         current_status = order.status
 
-        # Вспомогательная функция для получения идентификатора товара по его названию
-        def find_product_id_by_name(name):
-            product = next((p for p in self.controller.load_products() if p.name == name), None)
-            return product.id if product else None
-
         # Проверка на изменения в составе заказа
         changed = any([
             int(self.order_items_treeview.item(child)["values"][1]) != self.original_order_items.get(
-                find_product_id_by_name(self.order_items_treeview.item(child)["values"][0]), 0)
+                self.controller.find_product_id_by_name(self.order_items_treeview.item(child)["values"][0]), 0)
             for child in self.order_items_treeview.get_children()
         ])
 
@@ -1459,14 +1695,17 @@ class EditOrderDialog(tk.Toplevel):
         total_amount = self.update_total_amount()
         self.controller.update_order(self.order_id, {"total_amount": total_amount})
 
-        # Обновляем интерфейс
+        # Очищаем поле поиска вкладки заказов
+        self.parent.clear_search_field(section="orders")
         self.load_order_data()
         messagebox.showinfo("Информация", "Изменения успешно применены.", parent=self)
         self.refresh_trees()
         self.destroy()  # Закрываем окно после успешного применения изменений
 
     def refresh_trees(self):
-        """Обновляет деревья в основном окне"""
+        """
+        Обновляет данные таблиц в главном окне.
+        """
         self.parent.load_orders()
         self.parent.load_products()
         self.parent.load_analysis()

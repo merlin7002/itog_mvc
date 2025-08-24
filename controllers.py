@@ -1,5 +1,3 @@
-from fontTools.qu2cu.qu2cu import Tuple
-
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 from db import (
@@ -17,7 +15,7 @@ from analysis import top5, orders_per_day, client_connections
 
 class DatetimeEncoder(json.JSONEncoder):
     """
-    Кастомный JSON-кодировщик, умеющий сериализировать объекты datetime.
+    Класс, позволяющий сериализовывать объекты datetime в формате JSON.
     """
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -25,41 +23,73 @@ class DatetimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 class AppController:
+    """
+    Контроллер приложения, ответственный за управление данными и координацию взаимодействия различных частей системы.
+    """
     def __init__(self, main_app):
+        """
+        Инициализирует контроллер приложения и создаёт таблицы в базе данных.
+
+        Parameters
+        ----------
+        main_app : object
+            Главное приложение, в котором работает контроллер.
+        """
         self.main_app = main_app
         self.cart_items = []  # Временное хранилище корзины покупок
-
-    # Создаем таблицы в базе данных при инициализации контроллера
-    create_tables()
+        create_tables()  # Создает таблицы в базе данных при инициализации контроллера
 
     def load_customers(self):
         """
-        Возвращает список всех клиентов в формате, пригодном для представления.
+        Загружает список всех клиентов из базы данных.
+
+        Returns
+        -------
+        list
+            Список объектов Customer.
         """
         return select_customers()
 
     def load_products(self):
         """
-        Возвращает список всех товаров в формате, пригодном для представления.
+        Загружает список всех товаров из базы данных.
+
+        Returns
+        -------
+        list
+            Список объектов Product.
         """
         return select_products()
 
     def load_orders(self):
         """
-        Возвращает список всех товаров в формате, пригодном для представления.
+        Загружает список всех заказов из базы данных.
+
+        Returns
+        -------
+        list
+            Список объектов Order.
         """
         return select_orders()
 
     def load_sort_orders(self, sort_params):
         """
-        Возвращает список заказов, отсортированных по параметрам.
+        Загружает список заказов, отсортированный по заданным параметрам.
+
+        Parameters
+        ----------
+        sort_params : dict
+            Словарь с параметрами сортировки (ключ 'heading' определяет столбец сортировки, ключ '<column>' —
+            направление сортировки ('asc' или 'desc')).
+
+        Returns
+        -------
+        list
+            Список объектов Order, отсортированный по заданным критериям.
         """
-        # Получаем полный список заказов
         orders = select_orders()
-        # Определяем столбец и направление сортировки
         column = sort_params.get("heading", "id")
         direction = sort_params.get(column, "asc")
-        # Производим сортировку
         if column == "id":
             orders.sort(key=lambda x: x.id, reverse=(direction == "desc"))
         elif column == "date":
@@ -70,70 +100,84 @@ class AppController:
 
     def search_customers(self, keyword):
         """
-        Осуществляет поиск клиентов по указанным ключевым словам.
+        Выполняет поиск клиентов по указанному ключевому слову.
+
+        Parameters
+        ----------
+        keyword : str
+            Ключевое слово для поиска (может соответствовать имени, email или телефону клиента).
+
+        Returns
+        -------
+        list
+            Список объектов Customer, удовлетворяющих условиям поиска.
         """
-        # Получаем список всех клиентов
         customers = select_customers()
-
-        # Нормализуем поисковый запрос (преобразуем в нижний регистр)
         normalized_keyword = keyword.lower()
-
-        # Фильтруем клиентов по ключевым словам
         filtered_customers = []
         for customer in customers:
-            # Проверяем все поля клиента на наличие подстроки
             if (
-                    normalized_keyword in str(customer.id).lower()  # ID клиента
-                    or normalized_keyword in customer.name.lower()  # Имя клиента
-                    or normalized_keyword in customer.email.lower()  # Email клиента
-                    or normalized_keyword in str(customer.phone).lower()  # Телефон клиента
+                normalized_keyword in str(customer.id).lower() or
+                normalized_keyword in customer.name.lower() or
+                normalized_keyword in customer.email.lower() or
+                normalized_keyword in str(customer.phone).lower()
             ):
                 filtered_customers.append(customer)
-
         return filtered_customers
 
     def search_products(self, keyword):
         """
-        Осуществляет поиск товаров по указанным ключевым словам.
+        Выполняет поиск товаров по указанному ключевому слову.
+
+        Parameters
+        ----------
+        keyword : str
+            Ключевое слово для поиска (может соответствовать названию, цене или количеству товара).
+
+        Returns
+        -------
+        list
+            Список объектов Product, удовлетворяющих условиям поиска.
         """
-        # Получаем список всех товаров
         products = select_products()
-
-        # Нормализуем поисковый запрос (преобразуем в нижний регистр)
         normalized_keyword = keyword.lower()
-
-        # Фильтруем товары по ключевым словам
         filtered_products = []
         for product in products:
-            # Проверяем все поля товара на наличие подстроки
             if (
-                    normalized_keyword in str(product.id).lower()  # ID товара
-                    or normalized_keyword in product.name.lower()  # Название товара
-                    or normalized_keyword in str(product.price).lower()  # Цена товара
-                    or normalized_keyword in str(product.quantity).lower()  # Количество товара
+                normalized_keyword in str(product.id).lower() or
+                normalized_keyword in product.name.lower() or
+                normalized_keyword in str(product.price).lower() or
+                normalized_keyword in str(product.quantity).lower()
             ):
                 filtered_products.append(product)
         return filtered_products
 
     def search_orders(self, keyword):
         """
-        Осуществляет поиск заказов по указанным ключевым словам.
-        Поиск ведется по всем полям заказа, включая имя покупателя (customer.name).
+        Выполняет поиск заказов по указанному ключевому слову.
+
+        Parameters
+        ----------
+        keyword : str
+            Ключевое слово для поиска (может соответствовать номеру заказа, покупателю, дате создания, статусу или итоговой сумме).
+
+        Returns
+        -------
+        list
+            Список объектов Order, удовлетворяющих условиям поиска.
         """
         orders = select_orders()
         normalized_keyword = keyword.lower()
         filtered_orders = []
         for order in orders:
-            # Найти покупателя по идентификатору заказа
             customer = find_customer_by_id(order.customer_id)
             if customer:
-                # Проверяем все поля заказа на наличие подстроки
                 if (
-                        normalized_keyword in str(order.id).lower() or  # ID заказа
-                        normalized_keyword in customer.name.lower() or  # Имя покупателя
-                        normalized_keyword in str(order.date_created).lower() or  # Дата создания
-                        normalized_keyword in order.status.lower() or  # Статус заказа
-                        normalized_keyword in str(order.total_amount).lower()  # Итоговая сумма
+                    normalized_keyword in str(order.id).lower() or
+                    normalized_keyword in customer.name.lower() or
+                    normalized_keyword in str(order.date_created).lower() or
+                    normalized_keyword in order.status.lower() or
+                    normalized_keyword in str(order.total_amount).lower()
                 ):
                     filtered_orders.append(order)
         return filtered_orders
@@ -141,83 +185,112 @@ class AppController:
     def find_customer_by_id(self, customer_id):
         """
         Находит клиента по его идентификатору.
+
+        Parameters
+        ----------
+        customer_id : int
+            Идентификатор клиента.
+
+        Returns
+        -------
+        Customer
+            Объект Customer, соответствующий данному идентификатору.
         """
         return find_customer_by_id(customer_id)
 
     def find_product_by_id(self, product_id):
         """
         Находит товар по его идентификатору.
+
+        Parameters
+        ----------
+        product_id : int
+            Идентификатор товара.
+
+        Returns
+        -------
+        Product
+            Объект Product, соответствующий данному идентификатору.
         """
         return find_product_by_id(product_id)
 
     def find_order_by_id(self, order_id):
         """
         Находит заказ по его идентификатору.
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
+
+        Returns
+        -------
+        Order
+            Объект Order, соответствующий данному идентификатору.
         """
         return find_order_by_id(order_id)
 
     def find_order_list_by_id(self, order_id):
         """
         Находит состав заказа по его идентификатору.
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
+
+        Returns
+        -------
+        list
+            Список объектов OrderItem, составляющих указанный заказ.
         """
         return find_order_list_by_id(order_id)
 
-    # def export_data(self, filename, table_name, format_type):
-    #     """
-    #     Экспорт данных в выбранный формат (CSV или JSON).
-    #     Возвращает True, если экспорт прошел успешно, иначе False.
-    #     """
-    #     try:
-    #         raw_data = select_data(table_name)
-    #
-    #         if format_type.lower() == 'csv':
-    #             with open(filename, mode='w', newline='', encoding='utf-8-sig') as file:
-    #                 writer = csv.DictWriter(file, fieldnames=raw_data[0].keys())
-    #                 writer.writeheader()
-    #                 writer.writerows(raw_data)
-    #         elif format_type.lower() == 'json':
-    #             with open(filename, mode='w', encoding='utf-8') as file:
-    #                 json.dump(raw_data, file, ensure_ascii=False, indent=4)
-    #         else:
-    #             raise ValueError("Формат экспорта не поддерживается.")
-    #         return True, None
-    #     except Exception as e:
-    #         return False, str(e)
     def export_data(self, filename, entity_name, format_type):
         """
-        Универсальный метод экспорта данных. Может экспортировать простую таблицу или объединённые данные (для заказов).
+        Экспорт данных в выбранный формат (CSV или JSON).
+
+        Parameters
+        ----------
+        filename : str
+            Имя файла для экспорта.
+        entity_name : str
+            Название сущности (таблицы), данные которой экспортируются.
+        format_type : str
+            Тип формата экспорта ('csv' или 'json').
+
+        Returns
+        -------
+        bool
+            Результат операции (успех или ошибка).
+        str
+            Сообщение об ошибке (при неуспешном выполнении).
         """
         try:
             if entity_name == 'orders-details':
-                # Специальный случай для экспорта заказов с детализацией
                 raw_data = select_all_orders_with_items()
             else:
-                # Обычные случаи экспорта таблиц (customers, products и др.)
                 raw_data = select_data(entity_name)
 
             if format_type.lower() == 'csv':
                 with open(filename, mode='w', newline='', encoding='utf-8-sig') as file:
                     if isinstance(raw_data, list) and raw_data and isinstance(raw_data[0], dict):
-                        # Если это таблица (обычное поведение)
                         writer = csv.DictWriter(file, fieldnames=raw_data[0].keys())
                         writer.writeheader()
                         writer.writerows(raw_data)
                     else:
-                        # Иначе считаем, что это сложная структура (например, заказы с детализацией)
                         writer = csv.writer(file)
-                        writer.writerow(
-                            ['order_id', 'customer_id', 'date_created', 'status', 'total_amount', 'product_id',
-                             'quantity'])
+                        writer.writerow([
+                            'order_id', 'customer_id', 'date_created', 'status', 'total_amount', 'product_id', 'quantity'
+                        ])
                         for order in raw_data:
                             for item in order['items']:
                                 writer.writerow([
                                     order['id'], order['customer_id'], order['date_created'], order['status'],
-                                    order['total_amount'],
-                                    item['product_id'], item['quantity']
+                                    order['total_amount'], item['product_id'], item['quantity']
                                 ])
             elif format_type.lower() == 'json':
                 with open(filename, mode='w', encoding='utf-8') as file:
-                    # Используем кастомный JSON-кодировщик для обработки дат
                     json.dump(raw_data, file, cls=DatetimeEncoder, ensure_ascii=False, indent=4)
             else:
                 raise ValueError("Формат экспорта не поддерживается.")
@@ -228,10 +301,24 @@ class AppController:
     def import_data(self, filename, entity_name, format_type):
         """
         Импортирует данные из файла (CSV или JSON) в базу данных.
-        Возможность массовой вставки данных для tables (orders и order_items).
+
+        Parameters
+        ----------
+        filename : str
+            Имя файла для импорта.
+        entity_name : str
+            Название сущности (таблицы), в которую импортируются данные.
+        format_type : str
+            Тип формата импорта ('csv' или 'json').
+
+        Returns
+        -------
+        bool
+            Результат операции (успех или ошибка).
+        str
+            Сообщение об ошибке (при неуспешном выполнении).
         """
         try:
-            # Очистка таблиц заранее, чтобы избавиться от устаревших данных
             if entity_name == 'orders-details':
                 truncate_table('orders')
                 truncate_table('order_items')
@@ -243,18 +330,12 @@ class AppController:
                     reader = csv.reader(file)
                     header = next(reader)  # Пропускаем заголовочную строку
                     if entity_name == 'orders-details':
-                        # Специфичная структура для заказов с детализацией
                         all_data = []
                         for row in reader:
-                            # Распаковка строки с шестью значениями
                             order_id, customer_id, date_created, status, total_amount, items_json = row
                             parsed_date = datetime.strptime(date_created, '%Y-%m-%d %H:%M:%S')
-                            # Замена одинарных кавычек на двойные для корректного JSON
                             fixed_items_json = items_json.replace("'", '"')
-                            # Разбираем JSON-представление позиций заказа
                             items = json.loads(fixed_items_json)
-
-                            # Формируем записи для таблиц orders и order_items
                             order_data = [{
                                 'id': order_id,
                                 'customer_id': customer_id,
@@ -267,29 +348,20 @@ class AppController:
                                 'product_id': item['product_id'],
                                 'quantity': item['quantity']
                             } for item in items]
-
-                            # Добавляем записи для массового импорта
                             all_data.extend(order_data)
                             all_data.extend(item_data)
-
-                        # Массовая вставка данных
                         bulk_insert_data('orders', [d for d in all_data if 'order_id' not in d])
                         bulk_insert_data('order_items', [d for d in all_data if 'order_id' in d])
                     else:
-                        # Стандартный случай для простых таблиц
                         data = [{key: val for key, val in zip(header, row)} for row in reader]
                         bulk_insert_data(entity_name, data)
             elif format_type.lower() == 'json':
                 with open(filename, mode='r', encoding='utf-8') as file:
                     data = json.load(file)
                     if entity_name == 'orders-details':
-                        # Специфичная структура для заказов с детализацией
                         all_data = []
                         for entry in data:
-                            # Преобразуем дату в объект datetime
                             parsed_date = datetime.fromisoformat(entry['date_created'])
-
-                            # Формируем записи для таблиц orders и order_items
                             order_data = [{
                                 'id': entry['id'],
                                 'customer_id': entry['customer_id'],
@@ -302,50 +374,52 @@ class AppController:
                                 'product_id': item['product_id'],
                                 'quantity': item['quantity']
                             } for item in entry['items']]
-
-                            # Добавляем записи для массового импорта
                             all_data.extend(order_data)
                             all_data.extend(item_data)
-
-                        # Массовая вставка данных
                         bulk_insert_data('orders', [d for d in all_data if 'order_id' not in d])
                         bulk_insert_data('order_items', [d for d in all_data if 'order_id' in d])
                     else:
-                        # Стандартный случай для простых таблиц
                         bulk_insert_data(entity_name, data)
             else:
                 raise ValueError("Формат импорта не поддерживается.")
-
             return True, None
-
         except Exception as e:
             return False, str(e)
 
     def export_orders(self, filename, format_type):
         """
-        Экспортирует данные заказов с подробностями о позициях (таблица orders и order_items).
+        Экспортирует данные заказов с детальным списком товаров в указанный формат.
+
+        Parameters
+        ----------
+        filename : str
+            Имя файла для экспорта.
+        format_type : str
+            Тип формата экспорта ('csv' или 'json').
+
+        Returns
+        -------
+        bool
+            Результат операции (успех или ошибка).
+        str
+            Сообщение об ошибке (при неуспешном выполнении).
         """
         try:
-            # Получаем сырые данные обо всех заказах с детализацией
             raw_data = select_all_orders_with_items()
-
             if format_type.lower() == 'csv':
                 with open(filename, mode='w', newline='', encoding='utf-8-sig') as file:
                     writer = csv.writer(file)
-                    # Шапка файла CSV
-                    writer.writerow(
-                        ['order_id', 'customer_id', 'date_created', 'status', 'total_amount', 'product_id', 'quantity'])
-                    # Запись строк
+                    writer.writerow([
+                        'order_id', 'customer_id', 'date_created', 'status', 'total_amount', 'product_id', 'quantity'
+                    ])
                     for order in raw_data:
                         for item in order['items']:
                             writer.writerow([
                                 order['id'], order['customer_id'], order['date_created'], order['status'],
-                                order['total_amount'],
-                                item['product_id'], item['quantity']
+                                order['total_amount'], item['product_id'], item['quantity']
                             ])
             elif format_type.lower() == 'json':
                 with open(filename, mode='w', encoding='utf-8') as file:
-                    # Преобразуем данные в удобный формат JSON
                     processed_data = []
                     for order in raw_data:
                         processed_data.append({
@@ -368,58 +442,21 @@ class AppController:
 
     def add_customer(self, data):
         """
-        Добавляет нового клиента с предварительной проверкой и обработкой возможных ошибок.
-        :param data: словарь с полями ('name', 'email', 'phone')
+        Добавляет нового клиента в систему с предварительной проверкой данных.
+
+        Parameters
+        ----------
+        data : dict
+            Словарь с полями ('name', 'email', 'phone').
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
         errors = []
-
-        # Проверка наличия обязательных полей
         if not data.get('name', '').strip():
             errors.append("Имя обязательно для заполнения.")
-
-        # Валидация адреса электронной почты и телефона
-        email = data.get('email').strip()
-        phone = data.get('phone').strip()
-        if email:
-            try:
-                self.validate_email(email)
-            except ValueError as ve:
-                errors.append(str(ve))
-        if phone:
-            try:
-                self.validate_phone(phone)
-            except ValueError as vp:
-                errors.append(str(vp))
-
-        # Проверка ошибок и вывод сообщений
-        if errors:
-            return False, "\n".join(errors)
-
-        # Попытка вставки клиента
-        try:
-            insert_customer(Customer(**data))
-            self.load_customers()
-            return True, ""
-        except Exception as e:
-            # Обработка нарушения ограничения уникальности (например, дублирующий email)
-            if "UNIQUE constraint failed" in str(e):
-                return False, "Данный адрес электронной почты уже занят."
-            else:
-                return False, f"Возникла непредвиденная ошибка: {str(e)}"
-
-    def edit_customer(self, customer_id, data):
-        """
-        Редактирует данные клиента с предварительной проверкой и обработкой возможных ошибок.
-        :param customer_id: уникальный идентификатор клиента
-        :param data: словарь с полями ('name', 'email', 'phone')
-        """
-        errors = []
-
-        # Проверка наличия обязательных полей
-        if not data.get('name', '').strip():
-            errors.append("Имя обязательно для заполнения.")
-
-        # Валидация адреса электронной почты и телефона
         email = data.get('email')
         phone = data.get('phone')
         if email:
@@ -432,17 +469,54 @@ class AppController:
                 self.validate_phone(phone)
             except ValueError as vp:
                 errors.append(str(vp))
-
-        # Проверка ошибок и вывод сообщений
         if errors:
             return False, "\n".join(errors)
+        try:
+            insert_customer(Customer(**data))
+            return True, ""
+        except Exception as e:
+            if "UNIQUE constraint failed" in str(e):
+                return False, "Данный адрес электронной почты уже занят."
+            else:
+                return False, f"Возникла непредвиденная ошибка: {str(e)}"
 
-        # Попытка обновить клиента
+    def edit_customer(self, customer_id, data):
+        """
+        Редактирует данные клиента с предварительной проверкой данных.
+
+        Parameters
+        ----------
+        customer_id : int
+            Уникальный идентификатор клиента.
+        data : dict
+            Словарь с полями ('name', 'email', 'phone').
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
+        """
+        errors = []
+        if not data.get('name', '').strip():
+            errors.append("Имя обязательно для заполнения.")
+        email = data.get('email')
+        phone = data.get('phone')
+        if email:
+            try:
+                self.validate_email(email)
+            except ValueError as ve:
+                errors.append(str(ve))
+        if phone:
+            try:
+                self.validate_phone(phone)
+            except ValueError as vp:
+                errors.append(str(vp))
+        if errors:
+            return False, "\n".join(errors)
         try:
             update_customer(Customer(id=customer_id, **data))
             return True, ""
         except Exception as e:
-            # Обработка нарушения ограничения уникальности (например, дублирующий email)
             if "UNIQUE constraint failed" in str(e):
                 return False, "Данный адрес электронной почты уже занят."
             else:
@@ -450,57 +524,77 @@ class AppController:
 
     def delete_customer(self, customer_id):
         """
-        Удаляет клиента по его ID, предварительно проверив наличие заказов.
+        Удаляет клиента по его идентификатору, предварительно проверяя наличие заказов.
+
+        Parameters
+        ----------
+        customer_id : int
+            Уникальный идентификатор клиента.
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
-        # Проверяем, есть ли у покупателя активные заказы
         related_orders = select_orders_by_customer_id(customer_id)
         if related_orders:
             customer = find_customer_by_id(customer_id)
             error_message = f"У покупателя {customer.name} есть оформленные заказы. Удаление запрещено."
             return False, error_message
         else:
-            # Если заказов нет, удаляем покупателя
             delete_customer(customer_id)
             return True, None
 
-    def find_product_id_by_name(name):
+    def find_product_id_by_name(self, name):
+        """
+                Ищет товар по его наименованию
+
+                Parameters
+                ----------
+                name : str
+                    Наименование товара
+
+                Returns
+                -------
+                id : int
+                    id товара с наименованием name
+                """
         product = next((p for p in select_products() if p.name == name), None)
         return product.id if product else None
 
     def add_product(self, data):
         """
-        Добавляет новый продукт с предварительной проверкой и обработкой возможных ошибок.
-        :param data: словарь с полями ('name', 'price', 'quantity')
+        Добавляет новый товар в систему с предварительной проверкой данных.
+
+        Parameters
+        ----------
+        data : dict
+            Словарь с полями ('name', 'price', 'quantity').
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
         errors = []
-
-        # Проверка наличия обязательных полей
         if not data.get('name', '').strip():
             errors.append("Название товара обязательно для заполнения.")
-
-        # Проверка цены
         price = data.get('price')
+        quantity = data.get('quantity')
         try:
             price = float(price)
             if price <= 0:
                 errors.append("Цена должна быть положительной.")
         except ValueError:
             errors.append("Цена должна быть числом.")
-
-        # Проверка количества
-        quantity = data.get('quantity')
         try:
             quantity = int(quantity)
             if quantity < 0:
                 errors.append("Количество не может быть отрицательным.")
         except ValueError:
             errors.append("Количество должно быть целым числом.")
-
-        # Проверка ошибок и вывод сообщений
         if errors:
             return False, "\n".join(errors)
-
-        # Попытка вставки продукта
         try:
             insert_product(Product(**data))
             return True, ""
@@ -509,39 +603,39 @@ class AppController:
 
     def edit_product(self, product_id, data):
         """
-        Редактирует данные продукта.
-        :param product_id: уникальный идентификатор продукта
-        :param data: словарь с полями ('name', 'price', 'quantity')
+        Редактирует данные товара с предварительной проверкой данных.
+
+        Parameters
+        ----------
+        product_id : int
+            Уникальный идентификатор товара.
+        data : dict
+            Словарь с полями ('name', 'price', 'quantity').
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
         errors = []
-
-        # Проверка наличия обязательных полей
         if not data.get('name', '').strip():
             errors.append("Название товара обязательно для заполнения.")
-
-        # Проверка цены
         price = data.get('price')
+        quantity = data.get('quantity')
         try:
             price = float(price)
             if price <= 0:
                 errors.append("Цена должна быть положительной.")
         except ValueError:
             errors.append("Цена должна быть числом.")
-
-        # Проверка количества
-        quantity = data.get('quantity')
         try:
             quantity = int(quantity)
             if quantity < 0:
                 errors.append("Количество не может быть отрицательным.")
         except ValueError:
             errors.append("Количество должно быть целым числом.")
-
-        # Проверка ошибок и вывод сообщений
         if errors:
             return False, "\n".join(errors)
-
-        # Попытка обновить продукт
         try:
             update_product(Product(id=product_id, **data))
             return True, ""
@@ -550,61 +644,55 @@ class AppController:
 
     def delete_product(self, product_id):
         """
-        Удаляет товар по его ID, предварительно проверив наличие в оформленных заказах.
+        Удаляет товар по его идентификатору, предварительно проверяя наличие заказов.
+
+        Parameters
+        ----------
+        product_id : int
+            Уникальный идентификатор товара.
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
-        # Проверяем, участвует ли товар в активных заказах
         related_items = select_orders_by_product_id(product_id)
         if related_items:
             product = find_product_by_id(product_id)
             error_message = f"Товар {product.name} состоит в оформленном заказе. Удаление запрещено."
             return False, error_message
         else:
-            # Если товар не используется в заказах, удаляем его
             delete_product(product_id)
             return True, None
-
-    # def add_order(self, order_data):
-    #     """
-    #     Добавляет новый заказ и его позиции.
-    #     """
-    #     try:
-    #         order = Order(**order_data)
-    #         order_id = insert_order(order)
-    #         for item in order_data["items"]:
-    #             insert_order_item(order_id, OrderItem(**item))
-    #     except Exception as e:
-    #         messagebox.showerror("Ошибка", f"Возникла непредвиденная ошибка: {str(e)}")
-    #
-    # def add_to_cart(self, product_id, product_name, product_price):
-    #     """Добавляет товар в корзину."""
-    #     existing_item = next((item for item in self.cart_items if item["product_id"] == product_id), None)
-    #     if existing_item:
-    #         existing_item["quantity"] += 1
-    #     else:
-    #         self.cart_items.append(
-    #             {"product_id": product_id, "name": product_name, "price": product_price, "quantity": 1})
-    #
-    # def change_quantity(self, product_id, new_quantity):
-    #     """Меняет количество товара в корзине."""
-    #     item = next((item for item in self.cart_items if item["product_id"] == product_id), None)
-    #     if item:
-    #         item["quantity"] = new_quantity
-    #         if new_quantity == 0:
-    #             self.cart_items.remove(item)
 
     def add_order_item(self, order_id, item_dict):
         """
         Добавляет позицию заказа в базу данных.
-        :param order_id: идентификатор заказа
-        :param item_dict: словарь с полями 'product_id' и 'quantity'
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
+        item_dict : dict
+            Словарь с полями 'product_id' и 'quantity'.
         """
-        # Преобразуем словарь в объект OrderItem
         order_item = OrderItem(product_id=item_dict["product_id"], quantity=item_dict["quantity"])
-        # Передаём объект в метод базы данных
         insert_order_item(order_id, order_item)
 
     def calculate_total(self, cart_items):
-        """Рассчитывает общую сумму заказа."""
+        """
+        Рассчитывает общую сумму заказа.
+
+        Parameters
+        ----------
+        cart_items : list
+            Список товаров в корзине с указанием количества.
+
+        Returns
+        -------
+        float
+            Общая сумма заказа.
+        """
         t_sum = 0
         for i in cart_items:
             price = find_product_by_id(i["product_id"]).price
@@ -612,17 +700,26 @@ class AppController:
         return t_sum
 
     def process_checkout(self, cart_items, customer_id):
-        """Оформляет заказ и уменьшает количество товара на складе."""
-        # Проверка наличия товаров в корзине
+        """
+        Оформляет заказ и уменьшает количество товара на складе.
+
+        Parameters
+        ----------
+        cart_items : list
+            Список товаров в корзине с указанием количества.
+        customer_id : int
+            Идентификатор покупателя.
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если заказ успешно оформлен, иначе False и соответствующее сообщение об ошибке.
+        """
         if not cart_items:
             return False, "Нет товаров в корзине!"
-
-        # Проверка, что все товары имеют положительное количество
         zero_items = [item for item in cart_items if item["quantity"] == 0]
         if zero_items:
             return False, "Некоторые товары имеют нулевое количество, оформление заказа отменено."
-
-        # Создаем заказ
         order = Order(
             customer_id=customer_id,
             total_amount=self.calculate_total(cart_items),
@@ -630,55 +727,64 @@ class AppController:
             date_created=datetime.now()
         )
         order_id = insert_order(order)
-
-        # Создаем позиции заказа
         for item in cart_items:
             order_item = OrderItem(
                 product_id=item["product_id"],
                 quantity=item["quantity"]
             )
             insert_order_item(order_id, order_item)
-
-            # Уменьшаем количество товара на складе
             product = find_product_by_id(item["product_id"])
             if product:
                 product.quantity -= item["quantity"]
                 update_product(product)
-
         self.cart_items.clear()  # Очищаем корзину после оформления заказа
         return True, "Заказ успешно оформлен!"
 
-    # def calculate_total(self, cart_items):
-    #     """Рассчитывает общую сумму заказа."""
-    #     return sum(item["price"] * item["quantity"] for item in cart_items)
-
     def update_order(self, order_id, updates):
         """
-        Обновляет данные заказа, изменяя дату и время только при изменении итоговой суммы.
+        Обновляет данные заказа.
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
+        updates : dict
+            Словарь с новыми значениями полей заказа.
+
+        Returns
+        -------
+        tuple
+            (bool, str) - True, если обновление прошло успешно, иначе False и соответствующее сообщение об ошибке.
         """
-        # Получаем текущий заказ из базы данных
         original_order = find_order_by_id(order_id)
         if original_order:
-            # Автоматически ставим текущую дату и время только при изменении total_amount
             if "total_amount" in updates:
                 updates["date_created"] = datetime.now()
-
-            # Сохраняем изменения в базе данных
-            success = update_order(order_id, updates)  # Передаём только order_id и словарь обновлений
+            success = update_order(order_id, updates)
             return True, ""
         else:
             return False, "Заказ не найден."
 
     def delete_order(self, order_id):
         """
-        Удаляет заказ по его ID.
+        Удаляет заказ по его идентификатору.
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
         """
         delete_order(order_id)
         self.load_orders()
 
     def delete_order_list(self, order_id):
         """
-        Удаляет содержимое заказ по ID заказа.
+        Удаляет содержимое заказа по его идентификатору.
+
+        Parameters
+        ----------
+        order_id : int
+            Идентификатор заказа.
         """
         delete_order_list(order_id)
         self.load_orders()
@@ -686,6 +792,11 @@ class AppController:
     def validate_email(self, email):
         """
         Проверяет корректность email.
+
+        Raises
+        ------
+        ValueError
+            Если email некорректен.
         """
         pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(pattern, email):
@@ -693,7 +804,12 @@ class AppController:
 
     def validate_phone(self, phone):
         """
-        Проверяет корректность телефона.
+        Проверяет корректность номера телефона.
+
+        Raises
+        ------
+        ValueError
+            Если номер телефона некорректен.
         """
         pattern = r"^\+7\d{10}$|^\d{11}$"
         if not re.match(pattern, phone):
@@ -701,66 +817,91 @@ class AppController:
 
     def fetch_top5_customers(self):
         """
-        Получает сводку по топ-5 клиентам
+        Получает данные для построения графика "Топ-5 клиентов по заказам".
+
+        Returns
+        -------
+        list
+            Список кортежей с данными для построения графика.
         """
         res_ord, col_ord = select_analysis_data('orders')
-        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
         res_cust, col_cust = select_analysis_data('customers')
-        # df_customers = pd.DataFrame(res_cust, columns=col_cust)
-        # # Прямо соединяем заказы с клиентами
-        # merged_df = df_orders.merge(df_customers, left_on='customer_id', right_on='id', how='left')
-        # Составляем список кортежей с данными для построения датафрейма для построения графика top5
         res = [(res_cust, col_cust), (res_ord, col_ord)]
         return res
 
     def fetch_orders_per_day(self):
         """
-        Получает данные для динамического графика заказов по дням
+        Получает данные для построения графика "Динамика количества заказов по датам".
+
+        Returns
+        -------
+        tuple
+            Кортеж с данными для построения графика.
         """
         res_ord, col_ord = select_analysis_data('orders')
-        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
-        # Составляем кортеж с данными для построения датафрейма для построения графика orders_per_day
         res = (res_ord, col_ord)
         return res
 
     def fetch_client_connections(self):
         """
-        Получает данные для графа взаимосвязей клиентов
+        Получает данные для построения графа "Связь покупателей по общим товарам".
+
+        Returns
+        -------
+        list
+            Список кортежей с данными для построения графа.
         """
         res_cust, col_cust = select_analysis_data('customers')
-        # df_customers = pd.DataFrame(res_cust, columns=col_cust)
         res_prod, col_prod = select_analysis_data('products')
-        # df_products = pd.DataFrame(res_prod, columns=col_prod)
         res_ord, col_ord = select_analysis_data('orders')
-        # df_orders = pd.DataFrame(res_ord, columns=col_ord)
         res_ord_it, col_ord_it = select_analysis_data('order_items')
-        # df_order_items = pd.DataFrame(res_ord_it, columns=col_ord_it)
-        # Проводим полное слияние
-        # merged_df = df_orders.merge(df_customers, left_on='customer_id', right_on='id', how='left',
-        #                             suffixes=('_orders', '_customers'))
-        # merged_df2 = merged_df.merge(df_order_items, left_on='id_orders', right_on='order_id', how='inner')
-        # final_df = merged_df2.merge(df_products, left_on='product_id', right_on='id', how='inner', suffixes=('_customer', '_product'))[['name_customer', 'name_product']]  # Оставляем только нужное
-        # Составляем список кортежей с данными для построения датафрейма для построения графика top5
         res = [(res_cust, col_cust), (res_prod, col_prod), (res_ord, col_ord), (res_ord_it, col_ord_it)]
         return res
 
     def c_top5(self, res):
         """
-        Отправляет данные в analysis.py для построения графика "топ5 клиентов по заказам"
+        Передаёт данные в анализатор для построения графика "Топ-5 клиентов по заказам".
+
+        Parameters
+        ----------
+        res : list
+            Список кортежей с данными для анализа.
+
+        Returns
+        -------
+        pd.DataFrame
+            Датафрейм с результатом анализа.
         """
-        top = top5(res)
-
-        return top
-
+        return top5(res)
 
     def c_orders_per_day(self, res):
         """
-        Отправляет данные в analysis.py для построения графика "Динамика количества заказов по датам"
+        Передаёт данные в анализатор для построения графика "Динамика количества заказов по датам".
+
+        Parameters
+        ----------
+        res : tuple
+            Кортеж с данными для анализа.
+
+        Returns
+        -------
+        pd.DataFrame
+            Датафрейм с результатом анализа.
         """
         return orders_per_day(res)
 
     def c_client_connections(self, res):
         """
-        Отправляет данные в analysis.py для построения графа "Связь покупателей по общим товарам"
+        Передаёт данные в анализатор для построения графа "Связь покупателей по общим товарам".
+
+        Parameters
+        ----------
+        res : list
+            Список кортежей с данными для анализа.
+
+        Returns
+        -------
+        list
+            Список рёбер графа с результатами анализа.
         """
         return client_connections(res)

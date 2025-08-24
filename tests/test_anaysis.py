@@ -3,9 +3,17 @@ import pandas as pd
 from analysis import top5, orders_per_day, client_connections
 
 class TestAnalysisFunctions(unittest.TestCase):
+    """
+    Юнит-тесты для проверки работоспособности функций analysis.py.
+    """
 
     def test_top5_functionality(self):
-        # Выполняем метод
+        """
+        Тестирует правильность функционирования функции `top5`.
+
+        Данный тест проверяет, что функция возвращает правильные имена пяти наиболее активных клиентов и корректно формирует DataFrame.
+        """
+        # Тестовые входные данные для top5
         input_data = [
             ([(1, 'Иван Иванов', 'ivan@example.com', '89025652154'), (4, 'test', 'test@test.ru', '89052000000'),
               (12, 'Петя', 'petr@server.com', '12345678901'), (13, 'Вася', 'vasya@server.com', '12345678901'),
@@ -38,8 +46,12 @@ class TestAnalysisFunctions(unittest.TestCase):
         self.assertListEqual(expected_names, actual_names)
 
     def test_orders_per_day_functionality(self):
-        # Выполняем метод
-        # Правильные входные данные для метода orders_per_day
+        """
+        Тестирует правильность работы функции `orders_per_day`.
+
+        Данный тест проверяет, что функция возвращает верный набор данных по количеству заказов за каждую дату.
+        """
+        # Тестовые входные данные для метода orders_per_day
         input_data = (
             [
                 (1, 12, '2025-08-21 04:57:55', 'Новый', 277745.0), (4, 14, '2025-08-21 04:57:06', 'Новый', 22345.0),
@@ -68,7 +80,12 @@ class TestAnalysisFunctions(unittest.TestCase):
         self.assertListEqual(expected_dates, actual_dates)
 
     def test_client_connections_functionality(self):
-        # Выполняем метод
+        """
+        Тестирует правильность работы функции `client_connections`.
+
+        Данный тест проверяет, что функция создает валидные соединения между клиентами на основе общих товаров в заказах.
+        """
+        # Тестовые входные данные для client_connections
         input_data = [
             ([(1, 'Иван Иванов', 'ivan@example.com', '89025652154'), (4, 'test', 'test@test.ru', '89052000000'),
               (12, 'Петя', 'petr@server.com', '12345678901'), (13, 'Вася', 'vasya@server.com', '12345678901'),

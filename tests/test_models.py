@@ -3,8 +3,18 @@ from models import Customer, Product, OrderItem, Order
 from datetime import datetime
 
 class TestModels(unittest.TestCase):
+    """
+    Юнит-тесты для проверки models.py.
+    """
 
     def test_customer_class(self):
+        """
+        Тестирует функционирование класса `Customer`.
+
+        Проверяются следующие аспекты:
+        - Возможность создания экземпляра класса с передачей обязательных атрибутов.
+        - Работу статического метода `from_tuple`, позволяющего преобразовывать кортеж данных в объект класса.
+        """
         # Тестируем создание объекта Customer
         customer = Customer(id=1, name="John Doe", email="john@example.com", phone="+1234567890")
         self.assertEqual(customer.id, 1)
@@ -22,6 +32,13 @@ class TestModels(unittest.TestCase):
         self.assertEqual(customer_from_tuple.phone, "+0987654321")
 
     def test_product_class(self):
+        """
+        Тестирует работоспособность класса `Product`.
+
+        Проверяются следующие аспекты:
+        - Возможность создания экземпляра класса с передачей обязательных атрибутов.
+        - Работу статического метода `from_tuple`, позволяющего преобразовывать кортеж данных в объект класса.
+        """
         # Тестируем создание объекта Product
         product = Product(id=1, name="Phone", price=500.0, quantity=10)
         self.assertEqual(product.id, 1)
@@ -39,12 +56,24 @@ class TestModels(unittest.TestCase):
         self.assertEqual(product_from_tuple.quantity, 5)
 
     def test_order_item_class(self):
+        """
+        Тестирует корректность работы класса `OrderItem`.
+
+        Проверяется возможность создания экземпляра класса с указанными параметрами.
+        """
         # Тестируем создание объекта OrderItem
         order_item = OrderItem(product_id=1, quantity=2)
         self.assertEqual(order_item.product_id, 1)
         self.assertEqual(order_item.quantity, 2)
 
     def test_order_class(self):
+        """
+        Тестирует работоспособность класса `Order`.
+
+        Проверяются следующие аспекты:
+        - Возможность создания экземпляра класса с передачей обязательных атрибутов.
+        - Работу статического метода `from_tuple`, позволяющего преобразовывать кортеж данных в объект класса.
+        """
         # Тестируем создание объекта Order
         now = datetime.now()
         order = Order(
