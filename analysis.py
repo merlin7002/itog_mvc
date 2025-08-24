@@ -60,7 +60,8 @@ def orders_per_day(res):
     df_orders = pd.DataFrame(res[0], columns=res[1])
 
     # Преобразуем даты в нужный формат
-    df_orders['date_created'] = pd.to_datetime(df_orders['date_created'])
+    df_orders['date_created'] = df_orders['date_created'].apply(lambda x: x.split('.')[0])
+    df_orders['date_created'] = pd.to_datetime(df_orders['date_created'], format='%Y-%m-%d %H:%M:%S')
 
     # Группируем по нормализованной дате и считаем количество заказов
     orders_p_day = df_orders.groupby(df_orders['date_created'].dt.normalize()).size().reset_index(name='counts')
