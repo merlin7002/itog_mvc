@@ -39,6 +39,9 @@ class MainApp(tk.Tk):
         self.title("Интернет-магазин | Менеджмент клиентов и заказов")
         self.geometry("1200x800")
         self.controller = AppController(self)
+        style = ttk.Style(self)
+        style.theme_use('clam')
+        style.configure('Treeview.Heading', background='lightyellow')
         self.create_menus()
         self.sort_params = {"heading": "id", "id": "asc"}  # Глобальная переменная для хранения настроек сортировки
         # Изначально создаем пустой словарь для ссылок на поля поиска
@@ -93,9 +96,6 @@ class MainApp(tk.Tk):
         tab_control.add(self.tab_orders, text="Заказы")
         tab_control.add(self.tab_analysis, text="Аналитика и визуализация")
         tab_control.pack(expand=True, fill="both")
-        style = ttk.Style(self)
-        style.theme_use('clam')
-        style.configure('Treeview.Heading', background='lightyellow')
 
         self.setup_customers_tab()
         self.setup_products_tab()
@@ -140,7 +140,7 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск клиентов:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field('customers'))
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_customers)
         search_button.pack(side="right")
@@ -279,7 +279,7 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск товаров:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field('products'))
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_products)
         search_button.pack(side="right")
@@ -418,7 +418,7 @@ class MainApp(tk.Tk):
         search_frame = ttk.Frame(frame)
         search_label = ttk.Label(search_frame, text="Поиск заказов:")
         search_label.pack(side="left")
-        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field())
+        clear_button = ttk.Button(search_frame, text="Очистить", command=lambda: self.clear_search_field('orders'))
         clear_button.pack(side="right", pady=5)
         search_button = ttk.Button(search_frame, text="Искать", command=self.search_orders)
         search_button.pack(side="right")
@@ -741,7 +741,7 @@ class AddCustomerDialog(tk.Toplevel):
 
         # Основной фрейм
         main_frame = ttk.Frame(self)
-        main_frame.grid(row=0, column=0, padx=10, pady=10)
+        main_frame.grid(row=0, column=0, padx=5, pady=5)
 
         # Имя
         self.label_name = ttk.Label(main_frame, text="Имя:")

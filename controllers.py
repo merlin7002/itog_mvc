@@ -455,15 +455,23 @@ class AppController:
             (bool, str) - True, если операция прошла успешно, иначе False и соответствующее сообщение об ошибке.
         """
         errors = []
-        if not data.get('name', '').strip():
-            errors.append("Имя обязательно для заполнения.")
+
+        # Проверка обязательного заполнения всех полей
+        required_fields = {'name', 'email', 'phone'}
+        for field in required_fields:
+            if not data.get(field, '').strip():
+                errors.append(f"Поле '{field.capitalize()}' обязательно для заполнения.")
+
+        # Проверка корректности адреса электронной почты
         email = data.get('email')
-        phone = data.get('phone')
         if email:
             try:
                 self.validate_email(email)
             except ValueError as ve:
                 errors.append(str(ve))
+
+        # Проверка корректности номера телефона
+        phone = data.get('phone')
         if phone:
             try:
                 self.validate_phone(phone)
@@ -716,7 +724,7 @@ class AppController:
             (bool, str) - True, если заказ успешно оформлен, иначе False и соответствующее сообщение об ошибке.
         """
         if not cart_items:
-            return False, "Нет товаров в корзине!"
+            return False, "Нет товаров в заказе!"
         zero_items = [item for item in cart_items if item["quantity"] == 0]
         if zero_items:
             return False, "Некоторые товары имеют нулевое количество, оформление заказа отменено."
@@ -800,7 +808,7 @@ class AppController:
         """
         pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(pattern, email):
-            raise ValueError(f"Некорректный формат email: {email}")
+            raise ValueError(f"Некорректный формат email: {email}.\nПримеры: user@server.com или firstname.lastname@mail.company.ru")
 
     def validate_phone(self, phone):
         """
@@ -811,9 +819,9 @@ class AppController:
         ValueError
             Если номер телефона некорректен.
         """
-        pattern = r"^\+7\d{10}$|^\d{11}$"
+        pattern = r"^\+7\d{10}$|^8\d{10}$"
         if not re.match(pattern, phone):
-            raise ValueError(f"Некорректный формат телефона: {phone}")
+            raise ValueError(f"Некорректный формат телефона: {phone}.\nПримеры: +71234567890, 81234567890")
 
     def fetch_top5_customers(self):
         """
