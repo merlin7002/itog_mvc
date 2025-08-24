@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 

@@ -1,6 +1,4 @@
 import tkinter as tk
-from operator import truediv
-
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -500,11 +498,11 @@ class MainApp(tk.Tk):
         # Внутренние фреймы для ограничения роста графиков
         self.canvas1_frame = ttk.Frame(upper_row_frame, width=600, height=400)
         self.canvas1_frame.pack_propagate(False)
-        self.canvas1_frame.pack(side=tk.LEFT, fill=None, expand=False)
+        self.canvas1_frame.pack(side=tk.LEFT, fill="none", expand=False)
 
         self.canvas2_frame = ttk.Frame(upper_row_frame, width=600, height=400)
         self.canvas2_frame.pack_propagate(False)
-        self.canvas2_frame.pack(side=tk.RIGHT, fill=None, expand=False)
+        self.canvas2_frame.pack(side=tk.RIGHT, fill="none", expand=False)
 
         # Внутренний фрейм для нижнего ряда (третий график)
         lower_row_frame = ttk.Frame(graphs_frame)

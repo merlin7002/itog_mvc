@@ -1,8 +1,5 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import networkx as nx
 
 def top5(res):
     """
@@ -31,7 +28,8 @@ def orders_per_day(res):
     """
     # Подготовим данные
     df_orders = pd.DataFrame(res[0], columns=res[1])
-    df_orders['date_created'] = pd.to_datetime(df_orders['date_created'])
+    df_orders['date_created'] = df_orders['date_created'].apply(lambda x: x.split('.')[0])
+    df_orders['date_created'] = pd.to_datetime(df_orders['date_created'], format='%Y-%m-%d %H:%M:%S')
     orders_p_day = df_orders.groupby(df_orders['date_created'].dt.normalize()).size().reset_index(name='counts')
 
     # Форматирование дат
@@ -78,17 +76,4 @@ def client_connections(res):
         for dest in clients
         if adjacency_matrix.loc[src, dest] > 0
     ]
-
-    # # Создание графа NetworkX
-    # G = nx.Graph()
-    # G.add_weighted_edges_from(edges)
-    #
-    # # Визуализация графа
-    # pos = nx.spring_layout(G)
-    # nx.draw_networkx_nodes(G, pos, node_size=500, alpha=0.8)
-    # nx.draw_networkx_edges(G, pos, edge_color='gray')
-    # nx.draw_networkx_labels(G, pos, font_size=10, font_family='sans-serif')
-    # plt.axis('off')
-    # plt.title('Граф связей покупателей по общим товарам')
-    # plt.show()
     return edges

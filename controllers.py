@@ -1,5 +1,3 @@
-from fontTools.qu2cu.qu2cu import Tuple
-
 from models import Customer, Product, Order, OrderItem
 from datetime import datetime
 from db import (
@@ -13,7 +11,6 @@ from db import (
 )
 import re
 import csv, json
-import pandas as pd
 from analysis import top5, orders_per_day, client_connections
 
 class DatetimeEncoder(json.JSONEncoder):
