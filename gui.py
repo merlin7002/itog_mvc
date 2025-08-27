@@ -1672,6 +1672,7 @@ class EditOrderDialog(tk.Toplevel):
             return
 
         # Обновляем состав заказа
+        removed_items = []
         updated_items = []
         for child in self.order_items_treeview.get_children():
             values = self.order_items_treeview.item(child)["values"]
@@ -1679,7 +1680,16 @@ class EditOrderDialog(tk.Toplevel):
             quantity = int(values[1])
             product = next((p for p in self.controller.load_products() if p.name == product_name), None)
             if product:
-                updated_items.append({"product_id": product.id, "quantity": quantity})
+                if quantity > 0:
+                    updated_items.append({"product_id": product.id, "quantity": quantity})
+                else:
+                    removed_items.append(product_name)
+
+        if removed_items:
+            messagebox.showinfo("Информация",f"В заказе товары с нулевым количеством были удалены: {', '.join(removed_items)}.", parent=self)
+
+        if not updated_items:
+            messagebox.showwarning("Внимание", "В заказе количество всех товаров изменилось на 0, заказ отменяется.", parent=self)
 
         # Обновляем список товаров в заказе
         self.controller.delete_order_list(self.order_id)
